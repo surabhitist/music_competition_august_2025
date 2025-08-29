@@ -144,8 +144,6 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 /*********************** UPLOAD PAGE **************************/
 /*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
-  // --- Make file input more visible with custom button ---
-  // --- Make file input mobile-friendly with <label for="file"> ---
   const fileInput = document.getElementById("file");
   const fileName = document.getElementById("fileName");
 

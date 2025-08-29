@@ -40,19 +40,17 @@
           />
         </div>
         <br />
-        <div class="field">
-          <label for="file">Audio/Video file (≤ 50MB)</label>
-          <div class="file-picker">
-            <!-- Keep this input present (not display:none) so mobile can open the picker -->
-            <input id="file" type="file" accept="audio/*,video/*" />
+        <div class="file-picker">
+          <!-- hidden input -->
+          <input id="file" type="file" accept="audio/*,video/*" hidden />
 
-            <!-- This looks like a button but is a label that triggers the input on mobile -->
-            <label for="file" id="fileBtn" class="btn">📂 Choose File</label>
+          <!-- styled label acts as the button -->
+          <label for="file" class="btn file-btn">📂 Choose File</label>
 
-            <span id="fileName" class="muted" style="margin-left: 8px"
-              >No file selected</span
-            >
-          </div>
+          <!-- filename display -->
+          <span id="fileName" class="muted" style="margin-left: 8px"
+            >No file selected</span
+          >
         </div>
 
         <div id="progressWrap" class="progress hidden">
