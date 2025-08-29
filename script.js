@@ -131,6 +131,14 @@ function sortEntries(rows) {
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 }
+// Use a direct Drive URL that streams in <audio>/<video>
+function getDirectMediaUrl(fileId, fallbackUrl) {
+  if (fileId)
+    return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(
+      fileId
+    )}`;
+  return fallbackUrl || "";
+}
 
 /*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
@@ -153,6 +161,19 @@ function sortEntries(rows) {
       await new Promise((r) => setTimeout(r, stepMs));
     }
     return false;
+  }
+
+  // Find the entry by phone and return it
+  async function findEntryByPhone(phone) {
+    const res = await gasGet();
+    if (res.ok && Array.isArray(res.entries)) {
+      return (
+        res.entries.find(
+          (x) => String(x.phone || "").trim() === phone.trim()
+        ) || null
+      );
+    }
+    return null;
   }
 
   form.addEventListener("submit", async (e) => {
@@ -235,7 +256,16 @@ function sortEntries(rows) {
       const ok = await waitForPhone(phone);
       if (!ok) throw new Error("Upload did not complete. Please try again.");
 
-      // ✅ Success: reset the form & progress (stay on page, fields blank)
+      // 🎯 Redirect straight to the contestant page of THIS entry (so they can view/play it)
+      const entry = await findEntryByPhone(phone);
+      if (entry && entry.id) {
+        window.location.href = `contestant.html?id=${encodeURIComponent(
+          entry.id
+        )}`;
+        return; // stop here; page will change
+      }
+
+      // Fallback (shouldn’t happen): reset and stay on page
       bar.style.width = "100%";
       txt.textContent = "100%";
       setTimeout(() => {
@@ -402,6 +432,13 @@ function sortEntries(rows) {
 })();
 
 /*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE *****************************/
+/*********************** CONTESTANT PAGE (stable, no flicker) *****************************/
+/*********************** CONTESTANT PAGE (stable, clean) *****************************/
 (function contestantPage() {
   const container = document.getElementById("contestantDetails");
   if (!container) return;
@@ -409,73 +446,110 @@ function sortEntries(rows) {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
 
-  const info = document.createElement("p");
-  container.appendChild(info);
+  // Helpers
+  const driveDl = (fid) =>
+    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fid)}`;
+  const drivePrev = (fid) =>
+    `https://drive.google.com/file/d/${encodeURIComponent(fid)}/preview`;
+  const inferKind = (entry, src) => {
+    if (entry.type === "video" || entry.type === "audio") return entry.type;
+    const u = (src || "").toLowerCase();
+    if (/\.(mp4|webm|mov|m4v|3gp)(\?|$)/.test(u)) return "video";
+    if (/\.(mp3|wav|m4a|aac|ogg|oga)(\?|$)/.test(u)) return "audio";
+    return "audio";
+  };
 
-  async function render() {
+  let infoP, whichJudge, marksInput, submitBtn, judgeCard, mediaMount;
+  let mediaInitialized = false;
+  let lastEntryJson = "";
+
+  async function initOnce() {
     const resp = await gasGet();
     if (!resp.ok) {
       container.innerHTML = "<p class='muted'>Could not load.</p>";
-      return;
+      return null;
     }
-    const e = resp.entries.find((x) => x.id === id);
+    const e = (resp.entries || []).find((x) => x.id === id);
     if (!e) {
       container.innerHTML = "<p class='muted'>Entry not found.</p>";
-      return;
+      return null;
     }
+
+    const fileId = e.fileId || "";
+    const primarySrc = fileId ? driveDl(fileId) : e.fileUrl || "";
+    const kind = inferKind(e, primarySrc);
 
     container.innerHTML = `
       <h2>${escapeHtml(e.name)}</h2>
       <p><strong>WhatsApp:</strong> ${escapeHtml(String(e.phone || ""))}</p>
+      <div id="embedHere" style="margin-top:12px;"></div>
     `;
 
-    const mediaWrap = document.createElement("div");
-    if (e.type === "video") {
-      const v = document.createElement("video");
-      v.controls = true;
-      v.playsInline = true;
-      v.src = e.fileUrl;
-      v.style.maxWidth = "100%";
-      v.style.height = "auto";
-      v.style.borderRadius = "8px";
-      mediaWrap.appendChild(v);
-    } else {
-      const a = document.createElement("audio");
-      a.controls = true;
-      a.src = e.fileUrl;
-      mediaWrap.appendChild(a);
-    }
-    container.appendChild(mediaWrap);
+    mediaMount = document.getElementById("embedHere");
 
-    const j1 = e.marks?.j1 ?? null,
-      j2 = e.marks?.j2 ?? null;
-    const both = j1 !== null && j2 !== null,
-      none = j1 === null && j2 === null,
-      partial = !both && !none;
+    // --- Try native media first; fallback to Drive preview iframe once ---
+    const mountNative = () => {
+      let el;
+      if (kind === "video") {
+        el = document.createElement("video");
+        el.controls = true;
+        el.playsInline = true;
+        el.preload = "metadata";
+        el.src = primarySrc;
+        el.style.maxWidth = "100%";
+        el.style.height = "auto";
+        el.style.borderRadius = "8px";
+      } else {
+        el = document.createElement("audio");
+        el.controls = true;
+        el.preload = "metadata";
+        el.src = primarySrc;
+      }
+      let loaded = false;
+      el.addEventListener(
+        "loadedmetadata",
+        () => {
+          loaded = true;
+        },
+        { once: true }
+      );
+      el.addEventListener(
+        "error",
+        () => {
+          if (!loaded) mountIframe();
+        },
+        { once: true }
+      );
+      setTimeout(() => {
+        if (!loaded) mountIframe();
+      }, 2000);
+      mediaMount.innerHTML = "";
+      mediaMount.appendChild(el);
+    };
 
-    if (role === "judge1" || role === "judge2") {
-      info.textContent = none
-        ? "Not judged yet"
-        : (role === "judge1" ? j1 : j2) !== null &&
-          (role === "judge1" ? j2 : j1) === null
-        ? "Waiting for other judge"
-        : both
-        ? `Total: ${j1 + j2}/50 (James: ${j1}, Ananth: ${j2})`
-        : "Not judged yet";
-    } else {
-      info.textContent = none
-        ? "Not judged yet"
-        : partial
-        ? "Partial judgement"
-        : `Total: ${j1 + j2}/50`;
-    }
-    container.appendChild(info);
+    const mountIframe = () => {
+      if (!fileId) return;
+      const iframe = document.createElement("iframe");
+      iframe.src = drivePrev(fileId);
+      iframe.style.width = "100%";
+      iframe.style.border = "0";
+      iframe.allow = "autoplay; encrypted-media";
+      iframe.style.height = kind === "video" ? "360px" : "120px";
+      mediaMount.innerHTML = "";
+      mediaMount.appendChild(iframe);
+    };
 
-    // Judges panel
-    const judgeCard = document.getElementById("judgeSection");
-    const whichJudge = document.getElementById("whichJudge");
-    const marksInput = document.getElementById("marks");
-    const submit = document.getElementById("submitMarks");
+    mountNative();
+
+    // Build status paragraph
+    infoP = document.createElement("p");
+    container.appendChild(infoP);
+
+    // Judge panel references (already present in HTML)
+    judgeCard = document.getElementById("judgeSection");
+    whichJudge = document.getElementById("whichJudge");
+    marksInput = document.getElementById("marks");
+    submitBtn = document.getElementById("submitMarks");
 
     if (role === "judge1" || role === "judge2") {
       judgeCard.classList.remove("hidden");
@@ -483,41 +557,90 @@ function sortEntries(rows) {
         role === "judge1"
           ? "You are logged in as James"
           : "You are logged in as Ananth";
-      const myMark = role === "judge1" ? j1 ?? null : j2 ?? null;
-      if (myMark !== null) marksInput.value = String(myMark);
+      if (submitBtn) {
+        submitBtn.onclick = async () => {
+          const val = parseInt(marksInput.value, 10);
+          if (Number.isNaN(val) || val < 0 || val > 25) {
+            alert("Please enter a number between 0 and 25.");
+            return;
+          }
+          submitBtn.disabled = true;
+          submitBtn.classList.add("disabled");
+          submitBtn.textContent = "Saving…";
+          const r = await postForm({
+            action: "mark",
+            id: e.id,
+            judge: role,
+            value: val,
+          });
+          if (!r.ok) alert(r.error || "Could not save your mark.");
+          else alert(`Your mark submitted: ${val}/25`);
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("disabled");
+          submitBtn.textContent = "Submit mark";
+          await refreshMarksOnly();
+        };
+      }
+    }
 
-      submit.onclick = async () => {
-        const val = parseInt(marksInput.value, 10);
-        if (Number.isNaN(val) || val < 0 || val > 25) {
-          alert("Please enter a number between 0 and 25.");
-          return;
-        }
+    mediaInitialized = true;
+    await refreshMarksOnly(e);
+    return e;
+  }
 
-        // Disable button during save to avoid double submit
-        submit.disabled = true;
-        submit.classList.add("disabled");
-        submit.textContent = "Saving…";
+  async function refreshMarksOnly(existing) {
+    let e = existing;
+    if (!e) {
+      const resp = await gasGet();
+      if (!resp.ok) return;
+      e = (resp.entries || []).find((x) => x.id === id);
+      if (!e) return;
+    }
 
-        const r = await postForm({
-          action: "mark",
-          id: e.id,
-          judge: role,
-          value: val,
-        });
-        if (!r.ok) {
-          alert(r.error || "Could not save your mark.");
-        } else {
-          alert(`Your mark submitted: ${val}/25`);
-          await render(); // refresh current view
-        }
+    const sig = JSON.stringify({
+      j1: e.marks?.j1 ?? null,
+      j2: e.marks?.j2 ?? null,
+    });
+    if (sig === lastEntryJson && infoP) return;
+    lastEntryJson = sig;
 
-        submit.disabled = false;
-        submit.classList.remove("disabled");
-        submit.textContent = "Submit mark";
-      };
+    const j1 = e.marks?.j1 ?? null,
+      j2 = e.marks?.j2 ?? null;
+    const both = j1 !== null && j2 !== null,
+      none = j1 === null && j2 === null,
+      partial = !both && !none;
+
+    if (infoP) {
+      if (role === "judge1" || role === "judge2") {
+        infoP.textContent = none
+          ? "Not judged yet"
+          : (role === "judge1" ? j1 : j2) !== null &&
+            (role === "judge1" ? j2 : j1) === null
+          ? "Waiting for other judge"
+          : both
+          ? `Total: ${j1 + j2}/50 (James: ${j1}, Ananth: ${j2})`
+          : "Not judged yet";
+      } else {
+        infoP.textContent = none
+          ? "Not judged yet"
+          : partial
+          ? "Partial judgement"
+          : `Total: ${j1 + j2}/50`;
+      }
+    }
+
+    if (
+      (role === "judge1" || role === "judge2") &&
+      marksInput &&
+      document.activeElement !== marksInput
+    ) {
+      const my = role === "judge1" ? j1 ?? "" : j2 ?? "";
+      marksInput.value = my === "" ? "" : String(my);
     }
   }
 
-  render();
-  setInterval(render, 5000);
+  (async () => {
+    await initOnce();
+    if (mediaInitialized) setInterval(refreshMarksOnly, 5000);
+  })();
 })();
