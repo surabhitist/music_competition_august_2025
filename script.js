@@ -7,6 +7,7 @@ const ADMIN_PIN = "ADMIN123";
 const J1_PIN = "JAMES123";
 const J2_PIN = "ANANTH123";
 
+// Allow ?role=judge1 etc.
 const urlRole = new URLSearchParams(location.search).get("role");
 if (urlRole) localStorage.setItem("role", urlRole);
 let role = localStorage.getItem("role") || "public";
@@ -14,6 +15,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 
 /*********************** COMMON UI ************************/
 (function setupUI() {
+  // Role selector (header)
   const rs = document.getElementById("roleSelect");
   if (rs) {
     rs.value = role;
@@ -23,14 +25,13 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     };
   }
 
-  // Judge login via PIN
+  // Judge login via PIN (header)
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
   if (judgeLoginBtn) {
     if (isPrivileged) {
       // Already logged in → hide login button
       judgeLoginBtn.classList.add("hidden");
     } else {
-      // Not logged in → show login button
       judgeLoginBtn.classList.remove("hidden");
       judgeLoginBtn.onclick = () => {
         const pin = prompt("Enter Judge/Admin PIN:");
@@ -49,7 +50,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Logout button
+  // Logout button (header)
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     if (isPrivileged) {
@@ -64,7 +65,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Hide Upload links for judges/admins
+  // Judges/admins shouldn’t upload new entries
   if (isPrivileged) {
     const up1 = document.getElementById("uploadLink");
     const up2 = document.getElementById("uploadLinkView");
@@ -93,7 +94,6 @@ async function gasGet() {
     return { ok: false, error: String(e) };
   }
 }
-
 // FORM-ENC POST (avoids CORS preflight)
 async function postForm(paramsObj) {
   const params = new URLSearchParams();
@@ -112,7 +112,6 @@ async function postForm(paramsObj) {
     return { ok: false, error: "Bad JSON from server" };
   }
 }
-
 function sortEntries(rows) {
   return rows.slice().sort((a, b) => {
     const j1a = a.marks?.j1 ?? null,
@@ -158,6 +157,15 @@ function sortEntries(rows) {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    // 🔒 Mute/disable Upload button immediately
+    const btn = form.querySelector("button[type=submit]");
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("disabled");
+      btn.textContent = "Uploading…";
+    }
+
     const name = document.getElementById("cname").value.trim();
     const phone = document.getElementById("phone").value.trim();
     const file = document.getElementById("file").files[0];
@@ -175,7 +183,7 @@ function sortEntries(rows) {
       if (file.size > MAX)
         throw new Error("File too large. Please upload under 50 MB.");
 
-      // duplicate check
+      // Client-side duplicate check
       const list = await gasGet();
       if (
         list.ok &&
@@ -187,7 +195,7 @@ function sortEntries(rows) {
         );
       }
 
-      // read base64
+      // Read as base64
       wrap.classList.remove("hidden");
       bar.style.width = "10%";
       txt.textContent = "Reading file…";
@@ -202,7 +210,7 @@ function sortEntries(rows) {
         fr.readAsDataURL(file);
       });
 
-      // upload (no-cors keeps it simple; we confirm via GET)
+      // POST with no-cors (simple request); confirm via GET
       bar.style.width = "40%";
       txt.textContent = "Uploading…";
       await fetch(GAS_URL, {
@@ -221,19 +229,34 @@ function sortEntries(rows) {
         }).toString(),
       });
 
-      // confirm
+      // Confirm by polling GET
       bar.style.width = "70%";
       txt.textContent = "Processing…";
       const ok = await waitForPhone(phone);
       if (!ok) throw new Error("Upload did not complete. Please try again.");
 
+      // ✅ Success: reset the form & progress (stay on page, fields blank)
       bar.style.width = "100%";
       txt.textContent = "100%";
       setTimeout(() => {
-        window.location.href = "view.html";
+        form.reset();
+        wrap.classList.add("hidden");
+        bar.style.width = "0%";
+        txt.textContent = "0%";
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove("disabled");
+          btn.textContent = "Upload";
+        }
+        alert("✅ Upload complete!");
       }, 400);
     } catch (err) {
       alert(err.message || "Upload failed. Please try again.");
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("disabled");
+        btn.textContent = "Upload";
+      }
       if (wrap) {
         bar.style.width = "0%";
         txt.textContent = "0%";
@@ -469,6 +492,12 @@ function sortEntries(rows) {
           alert("Please enter a number between 0 and 25.");
           return;
         }
+
+        // Disable button during save to avoid double submit
+        submit.disabled = true;
+        submit.classList.add("disabled");
+        submit.textContent = "Saving…";
+
         const r = await postForm({
           action: "mark",
           id: e.id,
@@ -477,10 +506,14 @@ function sortEntries(rows) {
         });
         if (!r.ok) {
           alert(r.error || "Could not save your mark.");
-          return;
+        } else {
+          alert(`Your mark submitted: ${val}/25`);
+          await render(); // refresh current view
         }
-        alert(`Your mark submitted: ${val}/25`);
-        render();
+
+        submit.disabled = false;
+        submit.classList.remove("disabled");
+        submit.textContent = "Submit mark";
       };
     }
   }
