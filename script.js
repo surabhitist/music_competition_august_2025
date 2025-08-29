@@ -91,35 +91,34 @@ const role = localStorage.getItem("role") || "public";
 
 /*********************** COMMON UI: AUTH + HIDE UPLOAD *************/
 (function setupAuth() {
-  const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
+  const logoutArea = document.getElementById("logoutArea");
 
+  // Show logout only for admin/judges
   if (
     logoutBtn &&
     (role === "admin" || role === "judge1" || role === "judge2")
   ) {
-    logoutBtn.classList.remove("hidden");
+    if (logoutArea) logoutArea.classList.remove("hidden");
     logoutBtn.onclick = () => {
       localStorage.removeItem("role");
       alert("Logged out successfully!");
       window.location.href = "index.html";
     };
-  } else if (loginBtn) {
-    loginBtn.classList.remove("hidden");
   }
 
-  // Hide Upload buttons for admin & judges
+  // 🔴 Hide Upload buttons for Admin and Judges
   if (role === "admin" || role === "judge1" || role === "judge2") {
     const up1 = document.getElementById("uploadLink");
     const up2 = document.getElementById("uploadLinkView");
     if (up1) up1.style.display = "none";
     if (up2) up2.style.display = "none";
-  }
 
-  // Optional: auto-redirect judges landing on home
-  // if ((role === "judge1" || role === "judge2") && location.pathname.endsWith("index.html")) {
-  //   location.replace("view.html");
-  // }
+    // If they try direct access to upload.html, redirect to view.html
+    if (location.pathname.endsWith("upload.html")) {
+      window.location.replace("view.html");
+    }
+  }
 })();
 
 /*********************** UPLOAD PAGE *************************/

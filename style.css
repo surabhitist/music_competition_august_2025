@@ -293,3 +293,56 @@ form.card input[type="password"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Vertical button stack on home page */
+.cta.vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+/* Force same width */
+.btn.full {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Button colours */
+.btn.upload {
+  background: #0066ff;
+}
+.btn.upload:hover {
+  background: #004fd4;
+}
+
+.btn.view {
+  background: #00b894;
+}
+.btn.view:hover {
+  background: #009774;
+}
+
+.btn.login {
+  background: #ff8800;
+}
+.btn.login:hover {
+  background: #e07000;
+}
+
+.logout-area {
+  text-align: right;
+  padding: 10px 20px;
+}
+.btn.logout {
+  background: #ff4757;
+}
+.btn.logout:hover {
+  background: #e84118;
+}
