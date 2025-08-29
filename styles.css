@@ -194,6 +194,21 @@ audio {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* Visually hide file input but keep it accessible (mobile-friendly) */
+#file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Big, visible "Choose File" label button */
 .file-picker .btn {
   background: #20c997;
   color: #07102b;
@@ -204,6 +219,7 @@ audio {
   border: none;
   cursor: pointer;
   transition: background 0.2s ease;
+  display: inline-block; /* needed because it's a <label> */
 }
 .file-picker .btn:hover {
   background: #17a589;

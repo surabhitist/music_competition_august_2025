@@ -43,10 +43,12 @@
         <div class="field">
           <label for="file">Audio/Video file (≤ 50MB)</label>
           <div class="file-picker">
-            <input id="file" type="file" hidden />
-            <button type="button" id="fileBtn" class="btn">
-              📂 Choose File
-            </button>
+            <!-- Keep this input present (not display:none) so mobile can open the picker -->
+            <input id="file" type="file" accept="audio/*,video/*" />
+
+            <!-- This looks like a button but is a label that triggers the input on mobile -->
+            <label for="file" id="fileBtn" class="btn">📂 Choose File</label>
+
             <span id="fileName" class="muted" style="margin-left: 8px"
               >No file selected</span
             >

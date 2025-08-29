@@ -145,14 +145,13 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 /*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
   // --- Make file input more visible with custom button ---
+  // --- Make file input mobile-friendly with <label for="file"> ---
   const fileInput = document.getElementById("file");
-  const fileBtn = document.getElementById("fileBtn");
   const fileName = document.getElementById("fileName");
 
-  if (fileBtn && fileInput) {
-    fileBtn.onclick = () => fileInput.click();
+  if (fileInput) {
     fileInput.onchange = () => {
-      if (fileInput.files.length > 0) {
+      if (fileInput.files && fileInput.files.length > 0) {
         fileName.textContent = fileInput.files[0].name;
         fileName.classList.remove("muted");
       } else {
