@@ -21,14 +21,18 @@ body {
   background: #ffffff;
   padding: 10px 20px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-  gap: 8px;
-  flex-wrap: wrap;
-}
-#authButtons {
-  display: flex;
-  gap: 10px;
+  flex-wrap: nowrap;
 }
 
+/* Logout (only on contestant page) */
+.btn.logout {
+  background: #ff4757;
+}
+.btn.logout:hover {
+  background: #e84118;
+}
+
+/* Buttons */
 a#loginBtn,
 #logoutBtn,
 .btn {
@@ -41,11 +45,6 @@ a#loginBtn,
   text-decoration: none;
   font-size: 14px;
   transition: 0.2s;
-}
-a#loginBtn:hover,
-#logoutBtn:hover,
-.btn:hover {
-  background: #004fd4;
 }
 .btn.secondary {
   background: #00b894;
@@ -74,11 +73,43 @@ a#loginBtn:hover,
   color: #555;
   margin: 0 0 20px;
 }
-.cta {
+
+/* Home: vertical stacked buttons */
+.cta.vertical {
   display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  max-width: 260px;
+  margin: 0 auto;
+}
+.btn.full {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Button colours */
+.btn.upload {
+  background: #0066ff;
+}
+.btn.upload:hover {
+  background: #004fd4;
+}
+.btn.view {
+  background: #00b894;
+}
+.btn.view:hover {
+  background: #009774;
+}
+.btn.login {
+  background: #ff8800;
+}
+.btn.login:hover {
+  background: #e07000;
 }
 
 /* Cards & form */
@@ -157,6 +188,16 @@ a#loginBtn:hover,
   font-weight: 700;
 }
 
+/* View toolbar */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.role-chip {
+  font-size: 14px;
+}
+
 /* Table */
 .table-wrap {
   overflow-x: auto;
@@ -222,7 +263,6 @@ a#loginBtn:hover,
 }
 
 /* Responsive media */
-/* VIDEO */
 #contestantDetails video,
 video {
   max-width: 100%;
@@ -234,7 +274,6 @@ video {
   margin: 8px 0 12px;
   border-radius: 12px;
 }
-/* AUDIO */
 #contestantDetails audio,
 audio {
   max-width: 100%;
@@ -292,57 +331,4 @@ form.card input[type="password"] {
   .grid {
     grid-template-columns: 1fr;
   }
-}
-
-/* Vertical button stack on home page */
-.cta.vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
-  max-width: 260px;
-  margin: 0 auto;
-}
-
-/* Force same width */
-.btn.full {
-  display: block;
-  width: 100%;
-  text-align: center;
-  padding: 12px 0;
-  font-size: 16px;
-  font-weight: bold;
-}
-
-/* Button colours */
-.btn.upload {
-  background: #0066ff;
-}
-.btn.upload:hover {
-  background: #004fd4;
-}
-
-.btn.view {
-  background: #00b894;
-}
-.btn.view:hover {
-  background: #009774;
-}
-
-.btn.login {
-  background: #ff8800;
-}
-.btn.login:hover {
-  background: #e07000;
-}
-
-.logout-area {
-  text-align: right;
-  padding: 10px 20px;
-}
-.btn.logout {
-  background: #ff4757;
-}
-.btn.logout:hover {
-  background: #e84118;
 }

@@ -89,32 +89,35 @@ function getEntryById(id) {
 /* Role */
 const role = localStorage.getItem("role") || "public";
 
-/*********************** COMMON UI: AUTH + HIDE UPLOAD *************/
+/*********************** COMMON UI: UPLOAD HIDING & LOGOUT *************/
+/*********************** COMMON UI: UPLOAD HIDING & LOGOUT *************/
 (function setupAuth() {
-  const logoutBtn = document.getElementById("logoutBtn");
-  const logoutArea = document.getElementById("logoutArea");
+  const isPrivileged =
+    role === "admin" || role === "judge1" || role === "judge2";
 
-  // Show logout only for admin/judges
-  if (
-    logoutBtn &&
-    (role === "admin" || role === "judge1" || role === "judge2")
-  ) {
-    if (logoutArea) logoutArea.classList.remove("hidden");
-    logoutBtn.onclick = () => {
-      localStorage.removeItem("role");
-      alert("Logged out successfully!");
-      window.location.href = "index.html";
-    };
+  // Show/hide Logout on ALL pages (button exists in topbar on each page)
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    if (isPrivileged) {
+      logoutBtn.classList.remove("hidden");
+      logoutBtn.onclick = () => {
+        localStorage.removeItem("role");
+        alert("Logged out successfully!");
+        window.location.href = "index.html";
+      };
+    } else {
+      logoutBtn.classList.add("hidden");
+    }
   }
 
-  // 🔴 Hide Upload buttons for Admin and Judges
-  if (role === "admin" || role === "judge1" || role === "judge2") {
-    const up1 = document.getElementById("uploadLink");
-    const up2 = document.getElementById("uploadLinkView");
+  // Hide Upload links for Admin/James/Ananth
+  if (isPrivileged) {
+    const up1 = document.getElementById("uploadLink"); // home
+    const up2 = document.getElementById("uploadLinkView"); // view toolbar
     if (up1) up1.style.display = "none";
     if (up2) up2.style.display = "none";
 
-    // If they try direct access to upload.html, redirect to view.html
+    // If they manually open upload.html, redirect to view.html
     if (location.pathname.endsWith("upload.html")) {
       window.location.replace("view.html");
     }
@@ -176,7 +179,7 @@ const role = localStorage.getItem("role") || "public";
     txt.textContent = "0%";
 
     try {
-      // Progress UI (read), then store Blob in IDB
+      // Progress UI
       await readArrayBufferWithProgress(file, (loaded, total) => {
         const pct = total ? Math.round((loaded / total) * 100) : 0;
         bar.style.width = pct + "%";
@@ -253,7 +256,7 @@ function cryptoRandomId() {
     modeEl.textContent = label;
   }
 
-  // Remove the Actions header for non-admins
+  // Remove Actions header for non-admins
   if (role !== "admin" && tableEl.tHead && tableEl.tHead.rows.length) {
     const headRow = tableEl.tHead.rows[0];
     const lastTh = headRow.lastElementChild;
@@ -458,6 +461,16 @@ function cryptoRandomId() {
   const marksInput = document.getElementById("marks");
   const submit = document.getElementById("submitMarks");
 
+  // Show logout button on this page only (set up in setupAuth)
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (
+    logoutBtn &&
+    !(role === "admin" || role === "judge1" || role === "judge2")
+  ) {
+    // not logged in — keep hidden
+    logoutBtn.classList.add("hidden");
+  }
+
   if (role === "judge1" || role === "judge2") {
     judgeCard.classList.remove("hidden");
     whichJudge.textContent =
@@ -536,6 +549,25 @@ async function adminEditEntry(id, onDone) {
 }
 
 /*********************** UTILS ******************************************/
+function readArrayBufferWithProgress(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onprogress = (e) => {
+      if (onProgress) onProgress(e.loaded, e.total);
+    };
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error || new Error("FileReader error"));
+    fr.readAsArrayBuffer(file);
+  });
+}
+function isQuotaError(err) {
+  return err && (err.name === "QuotaExceededError" || err.code === 22);
+}
+function cryptoRandomId() {
+  return crypto && crypto.randomUUID
+    ? crypto.randomUUID()
+    : "id-" + Math.random().toString(36).slice(2) + Date.now();
+}
 function escapeHtml(s) {
   return s.replace(
     /[&<>"']/g,
