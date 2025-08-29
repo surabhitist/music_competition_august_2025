@@ -29,6 +29,7 @@
           <label for="cname">Name</label>
           <input id="cname" type="text" required />
         </div>
+        <br />
         <div class="field">
           <label for="phone">WhatsApp Number</label>
           <input
@@ -38,17 +39,27 @@
             required
           />
         </div>
+        <br />
         <div class="field">
           <label for="file">Audio/Video file (≤ 50MB)</label>
-          <input id="file" type="file" accept="audio/*,video/*" required />
+          <div class="file-picker">
+            <input id="file" type="file" hidden />
+            <button type="button" id="fileBtn" class="btn">
+              📂 Choose File
+            </button>
+            <span id="fileName" class="muted" style="margin-left: 8px"
+              >No file selected</span
+            >
+          </div>
         </div>
 
         <div id="progressWrap" class="progress hidden">
           <div id="progressBar" class="bar"></div>
           <span id="progressText">0%</span>
         </div>
+        <br /><br />
 
-        <button class="btn primary" type="submit">Upload</button>
+        <button class="btn btn_sub" type="submit">Upload</button>
       </form>
     </main>
 

@@ -141,13 +141,55 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 }
 
 /*********************** UPLOAD PAGE **************************/
+/*********************** UPLOAD PAGE **************************/
+/*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
+  // --- Make file input more visible with custom button ---
+  const fileInput = document.getElementById("file");
+  const fileBtn = document.getElementById("fileBtn");
+  const fileName = document.getElementById("fileName");
+
+  if (fileBtn && fileInput) {
+    fileBtn.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      if (fileInput.files.length > 0) {
+        fileName.textContent = fileInput.files[0].name;
+        fileName.classList.remove("muted");
+      } else {
+        fileName.textContent = "No file selected";
+        fileName.classList.add("muted");
+      }
+    };
+  }
+
   const form = document.getElementById("uploadForm");
   if (!form) return;
 
   const wrap = document.getElementById("progressWrap");
   const bar = document.getElementById("progressBar");
   const txt = document.getElementById("progressText");
+
+  // --- success banner container ---
+  const successBox = document.createElement("div");
+  successBox.id = "uploadSuccessBox";
+  successBox.className = "hidden";
+  successBox.innerHTML = `
+    <div style="
+      margin: 30px auto; 
+      padding: 20px; 
+      max-width: 400px; 
+      background:#1f4337; 
+      color:#73f0c6; 
+      border:2px solid #20c997; 
+      border-radius:12px; 
+      text-align:center; 
+      font-size:18px; 
+      font-weight:600;
+      box-shadow:0 4px 14px rgba(0,0,0,0.4);
+    ">
+      ✅ Upload successful!…
+    </div>`;
+  form.parentNode.insertBefore(successBox, form.nextSibling);
 
   async function waitForPhone(phone, timeoutMs = 30000, stepMs = 1500) {
     const phoneKey = phone.trim();
@@ -163,23 +205,9 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
     return false;
   }
 
-  // Find the entry by phone and return it
-  async function findEntryByPhone(phone) {
-    const res = await gasGet();
-    if (res.ok && Array.isArray(res.entries)) {
-      return (
-        res.entries.find(
-          (x) => String(x.phone || "").trim() === phone.trim()
-        ) || null
-      );
-    }
-    return null;
-  }
-
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    // 🔒 Mute/disable Upload button immediately
     const btn = form.querySelector("button[type=submit]");
     if (btn) {
       btn.disabled = true;
@@ -204,7 +232,6 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
       if (file.size > MAX)
         throw new Error("File too large. Please upload under 50 MB.");
 
-      // Client-side duplicate check
       const list = await gasGet();
       if (
         list.ok &&
@@ -216,10 +243,10 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         );
       }
 
-      // Read as base64
       wrap.classList.remove("hidden");
       bar.style.width = "10%";
       txt.textContent = "Reading file…";
+
       const base64 = await new Promise((resolve, reject) => {
         const fr = new FileReader();
         fr.onerror = () => reject(fr.error || new Error("File read error"));
@@ -231,7 +258,6 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         fr.readAsDataURL(file);
       });
 
-      // POST with no-cors (simple request); confirm via GET
       bar.style.width = "40%";
       txt.textContent = "Uploading…";
       await fetch(GAS_URL, {
@@ -250,36 +276,18 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         }).toString(),
       });
 
-      // Confirm by polling GET
       bar.style.width = "70%";
       txt.textContent = "Processing…";
       const ok = await waitForPhone(phone);
       if (!ok) throw new Error("Upload did not complete. Please try again.");
 
-      // 🎯 Redirect straight to the contestant page of THIS entry (so they can view/play it)
-      const entry = await findEntryByPhone(phone);
-      if (entry && entry.id) {
-        window.location.href = `contestant.html?id=${encodeURIComponent(
-          entry.id
-        )}`;
-        return; // stop here; page will change
-      }
+      // ✅ CLEAR SUCCESS MESSAGE
+      wrap.classList.add("hidden");
+      successBox.classList.remove("hidden");
 
-      // Fallback (shouldn’t happen): reset and stay on page
-      bar.style.width = "100%";
-      txt.textContent = "100%";
       setTimeout(() => {
-        form.reset();
-        wrap.classList.add("hidden");
-        bar.style.width = "0%";
-        txt.textContent = "0%";
-        if (btn) {
-          btn.disabled = false;
-          btn.classList.remove("disabled");
-          btn.textContent = "Upload";
-        }
-        alert("✅ Upload complete!");
-      }, 400);
+        window.location.href = "view.html";
+      }, 2000);
     } catch (err) {
       alert(err.message || "Upload failed. Please try again.");
       if (btn) {
