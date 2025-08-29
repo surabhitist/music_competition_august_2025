@@ -1,108 +1,62 @@
-/*********************** CONSTANTS ***************************/
-const ENTRIES_KEY = "mc_entries_v2"; // [{id,name,phone,type,createdAt,marks:{j1,j2}}]
-const UPDATED_KEY = "mc_updated_at_v2";
-const DB_NAME = "mc_media_db";
-const DB_STORE = "media";
+/*********************** CONFIG ***************************/
+const GAS_URL =
+  "https://script.google.com/macros/s/AKfycbxAeX9VOhoCDLjmzfRmCqyvV4eWlqeqXTluNc0ZsqEE1XmSjcuIsrG6INo58Kl52Nsz/exec";
 
-/*********************** IndexedDB helpers *******************/
-function idbOpen() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) {
-        db.createObjectStore(DB_STORE, { keyPath: "id" });
-      }
+/*********************** ROLES + SIMPLE PINS ***************************/
+const ADMIN_PIN = "ADMIN123";
+const J1_PIN = "JAMES123";
+const J2_PIN = "ANANTH123";
+
+const urlRole = new URLSearchParams(location.search).get("role");
+if (urlRole) localStorage.setItem("role", urlRole);
+let role = localStorage.getItem("role") || "public";
+let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
+
+/*********************** COMMON UI ************************/
+(function setupUI() {
+  const rs = document.getElementById("roleSelect");
+  if (rs) {
+    rs.value = role;
+    rs.onchange = () => {
+      localStorage.setItem("role", rs.value);
+      location.reload();
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function idbPutBlob(id, file) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.objectStore(DB_STORE).put({ id, blob: file, type: file.type });
-  });
-}
-async function idbGetBlob(id) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, "readonly");
-    const req = tx.objectStore(DB_STORE).get(id);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function idbDeleteBlob(id) {
-  const db = await idbOpen();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, "readwrite");
-    const req = tx.objectStore(DB_STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
-/*********************** LocalStorage entries *****************/
-function loadEntries() {
-  try {
-    return JSON.parse(localStorage.getItem(ENTRIES_KEY) || "[]");
-  } catch {
-    return [];
   }
-}
-function saveEntries(list) {
-  localStorage.setItem(ENTRIES_KEY, JSON.stringify(list));
-  localStorage.setItem(UPDATED_KEY, String(Date.now()));
-}
-function upsertEntry(entry) {
-  const list = loadEntries();
-  const idx = list.findIndex((e) => e.id === entry.id);
-  if (idx >= 0) list[idx] = entry;
-  else list.push(entry);
-  saveEntries(list);
-}
-function deleteEntry(id) {
-  const list = loadEntries().filter((e) => e.id !== id);
-  saveEntries(list);
-}
 
-/* Marks helpers */
-function setMark(entryId, judgeRole, value) {
-  const list = loadEntries();
-  const idx = list.findIndex((e) => e.id === entryId);
-  if (idx === -1) return;
-  const entry = list[idx];
-  entry.marks = entry.marks || { j1: null, j2: null };
-  if (judgeRole === "judge1") entry.marks.j1 = value;
-  if (judgeRole === "judge2") entry.marks.j2 = value;
-  list[idx] = entry;
-  saveEntries(list);
-}
-function getEntryById(id) {
-  return loadEntries().find((e) => e.id === id) || null;
-}
+  // Judge login via PIN
+  const judgeLoginBtn = document.getElementById("judgeLoginBtn");
+  if (judgeLoginBtn) {
+    if (isPrivileged) {
+      // Already logged in → hide login button
+      judgeLoginBtn.classList.add("hidden");
+    } else {
+      // Not logged in → show login button
+      judgeLoginBtn.classList.remove("hidden");
+      judgeLoginBtn.onclick = () => {
+        const pin = prompt("Enter Judge/Admin PIN:");
+        if (pin === null) return;
+        let newRole = null;
+        if (pin === ADMIN_PIN) newRole = "admin";
+        else if (pin === J1_PIN) newRole = "judge1";
+        else if (pin === J2_PIN) newRole = "judge2";
+        if (!newRole) {
+          alert("Invalid PIN");
+          return;
+        }
+        localStorage.setItem("role", newRole);
+        location.reload();
+      };
+    }
+  }
 
-/* Role */
-const role = localStorage.getItem("role") || "public";
-
-/*********************** COMMON UI: UPLOAD HIDING & LOGOUT *************/
-/*********************** COMMON UI: UPLOAD HIDING & LOGOUT *************/
-(function setupAuth() {
-  const isPrivileged =
-    role === "admin" || role === "judge1" || role === "judge2";
-
-  // Show/hide Logout on ALL pages (button exists in topbar on each page)
+  // Logout button
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     if (isPrivileged) {
       logoutBtn.classList.remove("hidden");
       logoutBtn.onclick = () => {
         localStorage.removeItem("role");
-        alert("Logged out successfully!");
+        alert("Logged out.");
         window.location.href = "index.html";
       };
     } else {
@@ -110,21 +64,76 @@ const role = localStorage.getItem("role") || "public";
     }
   }
 
-  // Hide Upload links for Admin/James/Ananth
+  // Hide Upload links for judges/admins
   if (isPrivileged) {
-    const up1 = document.getElementById("uploadLink"); // home
-    const up2 = document.getElementById("uploadLinkView"); // view toolbar
+    const up1 = document.getElementById("uploadLink");
+    const up2 = document.getElementById("uploadLinkView");
     if (up1) up1.style.display = "none";
     if (up2) up2.style.display = "none";
-
-    // If they manually open upload.html, redirect to view.html
-    if (location.pathname.endsWith("upload.html")) {
+    if (location.pathname.endsWith("upload.html"))
       window.location.replace("view.html");
-    }
   }
 })();
 
-/*********************** UPLOAD PAGE *************************/
+/*********************** HELPERS **************************/
+function escapeHtml(s) {
+  return String(s).replace(
+    /[&<>\"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+        c
+      ])
+  );
+}
+async function gasGet() {
+  try {
+    const r = await fetch(GAS_URL);
+    return await r.json();
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+// FORM-ENC POST (avoids CORS preflight)
+async function postForm(paramsObj) {
+  const params = new URLSearchParams();
+  for (const k in paramsObj) params.set(k, String(paramsObj[k]));
+  const resp = await fetch(GAS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    },
+    body: params.toString(),
+  });
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { ok: false, error: "Bad JSON from server" };
+  }
+}
+
+function sortEntries(rows) {
+  return rows.slice().sort((a, b) => {
+    const j1a = a.marks?.j1 ?? null,
+      j2a = a.marks?.j2 ?? null;
+    const j1b = b.marks?.j1 ?? null,
+      j2b = b.marks?.j2 ?? null;
+    const bothA = j1a !== null && j2a !== null,
+      bothB = j1b !== null && j2b !== null;
+    if (bothA && bothB) {
+      const ta = j1a + j2a,
+        tb = j1b + j2b;
+      if (tb !== ta) return tb - ta;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    }
+    if (bothA && !bothB) return -1;
+    if (!bothA && bothB) return 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
+}
+
+/*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
   const form = document.getElementById("uploadForm");
   if (!form) return;
@@ -133,71 +142,90 @@ const role = localStorage.getItem("role") || "public";
   const bar = document.getElementById("progressBar");
   const txt = document.getElementById("progressText");
 
+  async function waitForPhone(phone, timeoutMs = 30000, stepMs = 1500) {
+    const phoneKey = phone.trim();
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeoutMs) {
+      const res = await gasGet();
+      if (res.ok && Array.isArray(res.entries)) {
+        if (res.entries.some((x) => String(x.phone || "").trim() === phoneKey))
+          return true;
+      }
+      await new Promise((r) => setTimeout(r, stepMs));
+    }
+    return false;
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const name = document.getElementById("cname").value.trim();
     const phone = document.getElementById("phone").value.trim();
-    const fileInput = document.getElementById("file");
-    const file = fileInput.files[0];
-
-    if (!name) {
-      alert("Please enter your name.");
-      return;
-    }
-    if (!/^[0-9+\-\s]{8,15}$/.test(phone)) {
-      alert("Please enter a valid WhatsApp number.");
-      return;
-    }
-    if (!file) {
-      alert("Please select an audio or video file.");
-      return;
-    }
-
-    const type = file.type.startsWith("video")
-      ? "video"
-      : file.type.startsWith("audio")
-      ? "audio"
-      : null;
-    if (!type) {
-      alert("File must be audio or video.");
-      return;
-    }
-
-    // One entry per phone
-    const entries = loadEntries();
-    if (entries.some((e) => e.phone === phone)) {
-      alert(
-        "This phone number has already uploaded an entry. Only one entry per contestant is allowed."
-      );
-      return;
-    }
-
-    // Show progress
-    wrap.classList.remove("hidden");
-    bar.style.width = "0%";
-    txt.textContent = "0%";
+    const file = document.getElementById("file").files[0];
 
     try {
-      // Progress UI
-      await readArrayBufferWithProgress(file, (loaded, total) => {
-        const pct = total ? Math.round((loaded / total) * 100) : 0;
-        bar.style.width = pct + "%";
-        txt.textContent = pct + "%";
+      if (!name) throw new Error("Please enter your name.");
+      if (!/^[0-9+\-\s]{8,15}$/.test(phone))
+        throw new Error("Please enter a valid WhatsApp number.");
+      if (!file) throw new Error("Please select an audio or video file.");
+
+      const type = file.type || "application/octet-stream";
+      if (!(type.startsWith("audio") || type.startsWith("video")))
+        throw new Error("File must be audio or video.");
+      const MAX = 50 * 1024 * 1024;
+      if (file.size > MAX)
+        throw new Error("File too large. Please upload under 50 MB.");
+
+      // duplicate check
+      const list = await gasGet();
+      if (
+        list.ok &&
+        Array.isArray(list.entries) &&
+        list.entries.some((x) => String(x.phone || "").trim() === phone.trim())
+      ) {
+        throw new Error(
+          "This phone number already has an entry. Please use a different number."
+        );
+      }
+
+      // read base64
+      wrap.classList.remove("hidden");
+      bar.style.width = "10%";
+      txt.textContent = "Reading file…";
+      const base64 = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onerror = () => reject(fr.error || new Error("File read error"));
+        fr.onload = () => {
+          const s = String(fr.result);
+          const i = s.indexOf(",");
+          resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        fr.readAsDataURL(file);
       });
 
-      const id = cryptoRandomId();
-      await idbPutBlob(id, file);
+      // upload (no-cors keeps it simple; we confirm via GET)
+      bar.style.width = "40%";
+      txt.textContent = "Uploading…";
+      await fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: new URLSearchParams({
+          action: "upload_b64",
+          name,
+          phone,
+          filename: file.name,
+          type,
+          data: base64,
+        }).toString(),
+      });
 
-      const entry = {
-        id,
-        name,
-        phone,
-        type,
-        createdAt: Date.now(),
-        marks: { j1: null, j2: null },
-      };
-      upsertEntry(entry);
+      // confirm
+      bar.style.width = "70%";
+      txt.textContent = "Processing…";
+      const ok = await waitForPhone(phone);
+      if (!ok) throw new Error("Upload did not complete. Please try again.");
 
       bar.style.width = "100%";
       txt.textContent = "100%";
@@ -205,47 +233,24 @@ const role = localStorage.getItem("role") || "public";
         window.location.href = "view.html";
       }, 400);
     } catch (err) {
-      console.error(err);
-      if (isQuotaError(err)) {
-        alert(
-          "Your browser ran out of storage for this file. Please upload a smaller file."
-        );
-      } else {
-        alert("There was an error saving your file. Please try again.");
+      alert(err.message || "Upload failed. Please try again.");
+      if (wrap) {
+        bar.style.width = "0%";
+        txt.textContent = "0%";
       }
     }
   });
 })();
 
-function readArrayBufferWithProgress(file, onProgress) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onprogress = (e) => {
-      if (onProgress) onProgress(e.loaded, e.total);
-    };
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = () => reject(fr.error || new Error("FileReader error"));
-    fr.readAsArrayBuffer(file);
-  });
-}
-function isQuotaError(err) {
-  return err && (err.name === "QuotaExceededError" || err.code === 22);
-}
-function cryptoRandomId() {
-  return crypto && crypto.randomUUID
-    ? crypto.randomUUID()
-    : "id-" + Math.random().toString(36).slice(2) + Date.now();
-}
-
-/*********************** VIEW PAGE ***************************/
+/*********************** VIEW PAGE **************************/
 (function viewPage() {
-  const bodyEl = document.getElementById("songsBody");
   const tableEl = document.getElementById("songsTable");
-  if (!bodyEl || !tableEl) return;
-
+  const bodyEl = document.getElementById("songsBody");
   const modeEl = document.getElementById("viewMode");
+  if (!tableEl || !bodyEl) return;
+
   if (modeEl) {
-    const label =
+    modeEl.textContent =
       role === "admin"
         ? "Admin"
         : role === "judge1"
@@ -253,21 +258,18 @@ function cryptoRandomId() {
         : role === "judge2"
         ? "Ananth"
         : "Public";
-    modeEl.textContent = label;
   }
 
-  // Remove Actions header for non-admins
+  // Hide Actions header for non-admins
   if (role !== "admin" && tableEl.tHead && tableEl.tHead.rows.length) {
-    const headRow = tableEl.tHead.rows[0];
-    const lastTh = headRow.lastElementChild;
-    if (lastTh && lastTh.dataset && lastTh.dataset.actions === "1") {
-      headRow.removeChild(lastTh);
-    }
+    const lastTh = tableEl.tHead.rows[0].lastElementChild;
+    if (lastTh && lastTh.dataset && lastTh.dataset.actions === "1")
+      lastTh.remove();
   }
 
-  function statusText(entry) {
-    const j1 = entry.marks?.j1 ?? null;
-    const j2 = entry.marks?.j2 ?? null;
+  function statusText(e) {
+    const j1 = e.marks?.j1 ?? null,
+      j2 = e.marks?.j2 ?? null;
     const both = j1 !== null && j2 !== null;
     const none = j1 === null && j2 === null;
     const partial = !both && !none;
@@ -284,37 +286,34 @@ function cryptoRandomId() {
           j1 + j2
         }/50 (James: ${j1}, Ananth: ${j2})</span>`;
     }
-
     if (none) return `<span class="badge gray">Not judged yet</span>`;
     if (partial) return `<span class="badge blue">Partial judgement</span>`;
     return `<span class="badge green">Total: ${j1 + j2}/50</span>`;
   }
 
-  function render() {
-    const rows = loadEntries().slice();
+  async function loadAndRender() {
+    const resp = await gasGet();
 
-    // Sorting: fully-judged first by total desc; others by name
-    rows.sort((a, b) => {
-      const j1a = a.marks?.j1 ?? null,
-        j2a = a.marks?.j2 ?? null;
-      const j1b = b.marks?.j1 ?? null,
-        j2b = b.marks?.j2 ?? null;
-      const bothA = j1a !== null && j2a !== null;
-      const bothB = j1b !== null && j2b !== null;
+    if (!resp.ok) {
+      bodyEl.innerHTML = `
+        <tr><td colspan="${role === "admin" ? 5 : 4}" class="center">
+          <span class="badge err">Could not load entries</span>
+        </td></tr>`;
+      return;
+    }
 
-      if (bothA && bothB) {
-        const ta = j1a + j2a,
-          tb = j1b + j2b;
-        if (tb !== ta) return tb - ta;
-        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-      }
-      if (bothA && !bothB) return -1;
-      if (!bothA && bothB) return 1;
-      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-    });
+    const entries = Array.isArray(resp.entries) ? resp.entries : [];
+    if (!entries.length) {
+      bodyEl.innerHTML = `
+        <tr><td colspan="${role === "admin" ? 5 : 4}" class="center">
+          <span class="badge gray">No entries yet</span>
+        </td></tr>`;
+      return;
+    }
 
+    const sorted = sortEntries(entries);
     bodyEl.innerHTML = "";
-    rows.forEach((e, i) => {
+    sorted.forEach((e, i) => {
       const tr = document.createElement("tr");
       tr.className = "clickable";
       tr.onclick = () => {
@@ -323,51 +322,51 @@ function cryptoRandomId() {
 
       const tdIdx = document.createElement("td");
       tdIdx.textContent = String(i + 1);
+      const tdNm = document.createElement("td");
+      tdNm.innerHTML = `<strong>${escapeHtml(e.name)}</strong>`;
+      const tdPh = document.createElement("td");
+      tdPh.textContent = String(e.phone || "");
+      const tdSt = document.createElement("td");
+      tdSt.innerHTML = statusText(e);
 
-      const tdName = document.createElement("td");
-      tdName.innerHTML = `<strong>${escapeHtml(e.name)}</strong>`;
+      tr.append(tdIdx, tdNm, tdPh, tdSt);
 
-      const tdPhone = document.createElement("td");
-      tdPhone.textContent = e.phone;
-
-      const tdStatus = document.createElement("td");
-      tdStatus.innerHTML = statusText(e);
-
-      tr.appendChild(tdIdx);
-      tr.appendChild(tdName);
-      tr.appendChild(tdPhone);
-      tr.appendChild(tdStatus);
-
-      // Admin-only Actions cell
       if (role === "admin") {
         const tdAct = document.createElement("td");
-
-        const editBtn = document.createElement("button");
-        editBtn.className = "btn";
-        editBtn.textContent = "Edit";
-        editBtn.style.marginRight = "6px";
-
-        const delBtn = document.createElement("button");
-        delBtn.className = "btn";
-        delBtn.textContent = "Delete";
-
-        editBtn.onclick = (ev) => {
+        const btnE = document.createElement("button");
+        btnE.className = "btn";
+        btnE.textContent = "Edit";
+        btnE.style.marginRight = "6px";
+        btnE.onclick = async (ev) => {
           ev.stopPropagation();
-          adminEditEntry(e.id, render);
+          const newName = prompt("Edit contestant name:", e.name);
+          if (newName === null) return;
+          const newPhone = prompt(
+            "Edit WhatsApp number:",
+            String(e.phone || "")
+          );
+          if (newPhone === null) return;
+          const r = await postForm({
+            action: "edit",
+            id: e.id,
+            name: newName.trim(),
+            phone: newPhone.trim(),
+          });
+          if (!r.ok) alert(r.error || "Edit failed");
+          else loadAndRender();
         };
-        delBtn.onclick = async (ev) => {
+        const btnD = document.createElement("button");
+        btnD.className = "btn";
+        btnD.textContent = "Delete";
+        btnD.onclick = async (ev) => {
           ev.stopPropagation();
           if (confirm("Delete this entry?")) {
-            deleteEntry(e.id);
-            try {
-              await idbDeleteBlob(e.id);
-            } catch {}
-            render();
+            const r = await postForm({ action: "delete", id: e.id });
+            if (!r.ok) alert(r.error || "Delete failed");
+            else loadAndRender();
           }
         };
-
-        tdAct.appendChild(editBtn);
-        tdAct.appendChild(delBtn);
+        tdAct.append(btnE, btnD);
         tr.appendChild(tdAct);
       }
 
@@ -375,205 +374,117 @@ function cryptoRandomId() {
     });
   }
 
-  window.addEventListener("storage", (e) => {
-    if (e.key === ENTRIES_KEY || e.key === UPDATED_KEY) render();
-  });
-
-  render();
+  loadAndRender();
+  setInterval(loadAndRender, 5000);
 })();
 
-/*********************** CONTESTANT PAGE *******************************/
+/*********************** CONTESTANT PAGE *****************************/
 (function contestantPage() {
   const container = document.getElementById("contestantDetails");
   if (!container) return;
 
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
-  const entry = getEntryById(id);
-
-  if (!entry) {
-    container.innerHTML = "<p>Entry not found.</p>";
-    return;
-  }
-
-  container.innerHTML = `
-    <h2>${escapeHtml(entry.name)}</h2>
-    <p><strong>WhatsApp:</strong> ${escapeHtml(entry.phone)}</p>
-  `;
-
-  // Load blob from IDB and display
-  (async () => {
-    const rec = await idbGetBlob(entry.id);
-    if (!rec || !rec.blob) {
-      const msg = document.createElement("p");
-      msg.textContent = "Media not found in this browser.";
-      container.appendChild(msg);
-      return;
-    }
-    const url = URL.createObjectURL(rec.blob);
-    if (entry.type === "video") {
-      const v = document.createElement("video");
-      v.controls = true;
-      v.playsInline = true;
-      v.src = url;
-      container.appendChild(v);
-    } else {
-      const a = document.createElement("audio");
-      a.controls = true;
-      a.src = url;
-      container.appendChild(a);
-    }
-  })();
 
   const info = document.createElement("p");
   container.appendChild(info);
 
-  function renderInfo() {
-    const ref = getEntryById(id);
-    const j1 = ref?.marks?.j1 ?? null;
-    const j2 = ref?.marks?.j2 ?? null;
-    const both = j1 !== null && j2 !== null;
-    const none = j1 === null && j2 === null;
-    const partial = !both && !none;
+  async function render() {
+    const resp = await gasGet();
+    if (!resp.ok) {
+      container.innerHTML = "<p class='muted'>Could not load.</p>";
+      return;
+    }
+    const e = resp.entries.find((x) => x.id === id);
+    if (!e) {
+      container.innerHTML = "<p class='muted'>Entry not found.</p>";
+      return;
+    }
+
+    container.innerHTML = `
+      <h2>${escapeHtml(e.name)}</h2>
+      <p><strong>WhatsApp:</strong> ${escapeHtml(String(e.phone || ""))}</p>
+    `;
+
+    const mediaWrap = document.createElement("div");
+    if (e.type === "video") {
+      const v = document.createElement("video");
+      v.controls = true;
+      v.playsInline = true;
+      v.src = e.fileUrl;
+      v.style.maxWidth = "100%";
+      v.style.height = "auto";
+      v.style.borderRadius = "8px";
+      mediaWrap.appendChild(v);
+    } else {
+      const a = document.createElement("audio");
+      a.controls = true;
+      a.src = e.fileUrl;
+      mediaWrap.appendChild(a);
+    }
+    container.appendChild(mediaWrap);
+
+    const j1 = e.marks?.j1 ?? null,
+      j2 = e.marks?.j2 ?? null;
+    const both = j1 !== null && j2 !== null,
+      none = j1 === null && j2 === null,
+      partial = !both && !none;
 
     if (role === "judge1" || role === "judge2") {
-      const my = role === "judge1" ? j1 : j2;
-      const other = role === "judge1" ? j2 : j1;
-
-      if (none || (my === null && other !== null)) {
-        info.textContent = "Not judged yet";
-      } else if (my !== null && other === null) {
-        info.textContent = "Waiting for other judge";
-      } else if (both) {
-        info.textContent = `Total: ${j1 + j2}/50 (James: ${j1}, Ananth: ${j2})`;
-      }
+      info.textContent = none
+        ? "Not judged yet"
+        : (role === "judge1" ? j1 : j2) !== null &&
+          (role === "judge1" ? j2 : j1) === null
+        ? "Waiting for other judge"
+        : both
+        ? `Total: ${j1 + j2}/50 (James: ${j1}, Ananth: ${j2})`
+        : "Not judged yet";
     } else {
-      if (none) info.textContent = "Not judged yet";
-      else if (partial) info.textContent = "Partial judgement";
-      else info.textContent = `Total: ${j1 + j2}/50`;
+      info.textContent = none
+        ? "Not judged yet"
+        : partial
+        ? "Partial judgement"
+        : `Total: ${j1 + j2}/50`;
+    }
+    container.appendChild(info);
+
+    // Judges panel
+    const judgeCard = document.getElementById("judgeSection");
+    const whichJudge = document.getElementById("whichJudge");
+    const marksInput = document.getElementById("marks");
+    const submit = document.getElementById("submitMarks");
+
+    if (role === "judge1" || role === "judge2") {
+      judgeCard.classList.remove("hidden");
+      whichJudge.textContent =
+        role === "judge1"
+          ? "You are logged in as James"
+          : "You are logged in as Ananth";
+      const myMark = role === "judge1" ? j1 ?? null : j2 ?? null;
+      if (myMark !== null) marksInput.value = String(myMark);
+
+      submit.onclick = async () => {
+        const val = parseInt(marksInput.value, 10);
+        if (Number.isNaN(val) || val < 0 || val > 25) {
+          alert("Please enter a number between 0 and 25.");
+          return;
+        }
+        const r = await postForm({
+          action: "mark",
+          id: e.id,
+          judge: role,
+          value: val,
+        });
+        if (!r.ok) {
+          alert(r.error || "Could not save your mark.");
+          return;
+        }
+        alert(`Your mark submitted: ${val}/25`);
+        render();
+      };
     }
   }
-  renderInfo();
 
-  // Judge section
-  const judgeCard = document.getElementById("judgeSection");
-  const whichJudge = document.getElementById("whichJudge");
-  const marksInput = document.getElementById("marks");
-  const submit = document.getElementById("submitMarks");
-
-  // Show logout button on this page only (set up in setupAuth)
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (
-    logoutBtn &&
-    !(role === "admin" || role === "judge1" || role === "judge2")
-  ) {
-    // not logged in — keep hidden
-    logoutBtn.classList.add("hidden");
-  }
-
-  if (role === "judge1" || role === "judge2") {
-    judgeCard.classList.remove("hidden");
-    whichJudge.textContent =
-      role === "judge1"
-        ? "You are logged in as James"
-        : "You are logged in as Ananth";
-
-    const myMark =
-      role === "judge1" ? entry.marks?.j1 ?? null : entry.marks?.j2 ?? null;
-    if (myMark !== null) marksInput.value = String(myMark);
-
-    submit.onclick = () => {
-      const val = parseInt(marksInput.value, 10);
-      if (!Number.isNaN(val) && val >= 0 && val <= 25) {
-        setMark(entry.id, role, val);
-        alert(`Your mark submitted: ${val}/25`);
-        renderInfo();
-      } else {
-        alert("Please enter a number between 0 and 25.");
-      }
-    };
-
-    // Live update when other judge marks elsewhere
-    window.addEventListener("storage", (e) => {
-      if (e.key === ENTRIES_KEY || e.key === UPDATED_KEY) {
-        renderInfo();
-      }
-    });
-  }
+  render();
+  setInterval(render, 5000);
 })();
-
-/*********************** Admin edit helper *****************************/
-async function adminEditEntry(id, onDone) {
-  const entry = getEntryById(id);
-  if (!entry) return;
-
-  const newName = prompt("Edit contestant name:", entry.name);
-  if (newName === null) return;
-  const newPhone = prompt("Edit WhatsApp number:", entry.phone);
-  if (newPhone === null) return;
-
-  entry.name = newName.trim() || entry.name;
-  entry.phone = newPhone.trim() || entry.phone;
-
-  if (confirm("Do you also want to replace the media file?")) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "audio/*,video/*";
-    input.onchange = async () => {
-      const file = input.files[0];
-      if (!file) return;
-      const t = file.type.startsWith("video")
-        ? "video"
-        : file.type.startsWith("audio")
-        ? "audio"
-        : null;
-      if (!t) {
-        alert("File must be audio or video.");
-        return;
-      }
-      try {
-        await idbPutBlob(entry.id, file);
-        entry.type = t;
-        upsertEntry(entry);
-        if (typeof onDone === "function") onDone();
-      } catch (err) {
-        console.error(err);
-        alert("Could not save the new media file.");
-      }
-    };
-    input.click();
-  } else {
-    upsertEntry(entry);
-    if (typeof onDone === "function") onDone();
-  }
-}
-
-/*********************** UTILS ******************************************/
-function readArrayBufferWithProgress(file, onProgress) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onprogress = (e) => {
-      if (onProgress) onProgress(e.loaded, e.total);
-    };
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = () => reject(fr.error || new Error("FileReader error"));
-    fr.readAsArrayBuffer(file);
-  });
-}
-function isQuotaError(err) {
-  return err && (err.name === "QuotaExceededError" || err.code === 22);
-}
-function cryptoRandomId() {
-  return crypto && crypto.randomUUID
-    ? crypto.randomUUID()
-    : "id-" + Math.random().toString(36).slice(2) + Date.now();
-}
-function escapeHtml(s) {
-  return s.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-        c
-      ])
-  );
-}

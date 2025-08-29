@@ -1,27 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contestant Details</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="utf-8" />
+    <title>Contestant</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
-    <div class="topbar">
-      <h1>Contestant Performance</h1>
-      <button id="logoutBtn" class="btn logout hidden">🚪 Logout</button>
-    </div>
+    <header class="topbar">
+      <h1>Contestant</h1>
+      <nav class="nav">
+        <a href="view.html">Back to list</a>
+        <button id="judgeLoginBtn" class="btn">Judge Login</button>
+        <button id="logoutBtn" class="btn hidden">Logout</button>
+        <!-- <select id="roleSelect" class="role-select">
+          <option value="public">Public</option>
+          <option value="admin">Admin</option>
+          <option value="judge1">James (Judge 1)</option>
+          <option value="judge2">Ananth (Judge 2)</option>
+        </select> -->
+      </nav>
+    </header>
 
-    <div id="contestantDetails" class="card"></div>
+    <main class="container">
+      <div id="contestantDetails" class="card">Loading…</div>
 
-    <div id="judgeSection" class="hidden card judge-card">
-      <p id="whichJudge" class="which-judge"></p>
-      <label for="marks">Enter Your Mark (0–25):</label>
-      <input type="number" id="marks" min="0" max="25" />
-      <button id="submitMarks" class="btn">Submit</button>
-      <p class="note">You can update your mark; the latest value is saved.</p>
-    </div>
+      <div id="judgeSection" class="card hidden">
+        <h3 id="whichJudge"></h3>
+        <div class="field">
+          <label for="marks">Your mark (0–25)</label>
+          <input id="marks" type="number" min="0" max="25" />
+        </div>
+        <button id="submitMarks" class="btn primary">Submit mark</button>
+        <p class="muted" id="judgeHint">
+          Marks save to the shared sheet; reload the list to see totals update.
+        </p>
+      </div>
+    </main>
 
-    <script src="script.js"></script>
+    <script src="script.js" type="module"></script>
   </body>
 </html>

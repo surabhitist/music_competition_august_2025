@@ -1,31 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8" />
     <title>Music Competition</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
-    <div class="topbar">
-      <h1>🎵 Music Competition 🎶</h1>
-      <button id="logoutBtn" class="btn logout hidden">🚪 Logout</button>
-    </div>
+    <header class="topbar">
+      <h1>Music Competition</h1>
+      <nav class="nav">
+        <!-- <a id="uploadLink" href="upload.html">Upload</a>
+        <a id="uploadLinkView" href="view.html">View Songs</a> -->
+        <button id="judgeLoginBtn" class="btn">Judge Login</button>
+        <button id="logoutBtn" class="btn hidden">Logout</button>
+        <!-- <select id="roleSelect" class="role-select">
+          <option value="public">Public</option>
+          <option value="admin">Admin</option>
+          <option value="judge1">James (Judge 1)</option>
+          <option value="judge2">Ananth (Judge 2)</option>
+        </select> -->
+      </nav>
+    </header>
 
-    <div class="hero">
-      <h2>Welcome!</h2>
-      <p>Upload your performance or view all entries.</p>
-      <div class="cta vertical">
-        <a class="btn upload full" href="upload.html" id="uploadLink"
-          >⬆️ Upload</a
-        >
-        <a class="btn view full" href="view.html">🎧 View Songs</a>
-        <a class="btn login full" href="login.html" id="loginBtnHome"
-          >🔑 Login (Admin/Judge)</a
-        >
-      </div>
-    </div>
+    <main class="container">
+      <section class="card">
+        <h2>Welcome</h2>
 
-    <script src="script.js"></script>
+        <div class="grid-two">
+          <a class="card linkcard" href="upload.html">
+            <h3>Upload Entry</h3>
+            <p>Submit audio/video (≤ 50MB)</p>
+          </a>
+          <a class="card linkcard" href="view.html">
+            <h3>View Songs</h3>
+            <p>See entries & marks in real-time</p>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js" type="module"></script>
   </body>
 </html>

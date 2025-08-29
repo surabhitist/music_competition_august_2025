@@ -1,46 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Upload Performance</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="utf-8" />
+    <title>Upload Entry</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
-    <div class="topbar">
-      <h1>Upload Performance</h1>
-      <button id="logoutBtn" class="btn logout hidden">🚪 Logout</button>
-    </div>
+    <header class="topbar">
+      <h1>Upload Entry</h1>
+      <nav class="nav">
+        <a id="uploadLink" href="upload.html">Upload</a>
+        <a id="uploadLinkView" href="view.html">View Songs</a>
+        <button id="judgeLoginBtn" class="btn">Judge Login</button>
+        <button id="logoutBtn" class="btn hidden">Logout</button>
+        <!-- <select id="roleSelect" class="role-select">
+          <option value="public">Public</option>
+          <option value="admin">Admin</option>
+          <option value="judge1">James (Judge 1)</option>
+          <option value="judge2">Ananth (Judge 2)</option>
+        </select> -->
+      </nav>
+    </header>
 
-    <form id="uploadForm" class="card">
-      <div class="grid">
+    <main class="container">
+      <form id="uploadForm" class="card">
         <div class="field">
-          <label for="cname">Contestant Name</label>
-          <input type="text" id="cname" placeholder="Your full name" required />
+          <label for="cname">Name</label>
+          <input id="cname" type="text" required />
         </div>
         <div class="field">
           <label for="phone">WhatsApp Number</label>
-          <input type="tel" id="phone" placeholder="e.g. 9876543210" required />
+          <input
+            id="phone"
+            type="text"
+            placeholder="e.g. 98765 43210"
+            required
+          />
         </div>
-        <div class="field full">
-          <label for="file">Select Audio/Video File</label>
-          <input type="file" id="file" accept="audio/*,video/*" required />
+        <div class="field">
+          <label for="file">Audio/Video file (≤ 50MB)</label>
+          <input id="file" type="file" accept="audio/*,video/*" required />
         </div>
-      </div>
 
-      <!-- Progress bar -->
-      <div id="progressWrap" class="progress hidden">
-        <div id="progressBar" class="bar" style="width: 0%"></div>
-        <div id="progressText" class="label">0%</div>
-      </div>
+        <div id="progressWrap" class="progress hidden">
+          <div id="progressBar" class="bar"></div>
+          <span id="progressText">0%</span>
+        </div>
 
-      <button type="submit" class="btn">Upload</button>
-      <p class="note">
-        After the upload completes, you’ll be redirected to the “View Songs”
-        page.
-      </p>
-    </form>
+        <button class="btn primary" type="submit">Upload</button>
+      </form>
+    </main>
 
-    <script src="script.js"></script>
+    <script src="script.js" type="module"></script>
   </body>
 </html>
