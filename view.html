@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>View Songs</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>All Performances</h1>
+      <div id="authButtons">
+        <a href="login.html" id="loginBtn" class="hidden"
+          >Login (Admin/Judge)</a
+        >
+        <button id="logoutBtn" class="hidden">Logout</button>
+      </div>
+    </div>
+
+    <div class="toolbar card">
+      <div>
+        <strong>Viewing as:</strong>
+        <span id="viewMode">Public</span>
+      </div>
+      <div class="cta">
+        <a class="btn" href="upload.html" id="uploadLinkView">⬆️ Upload</a>
+      </div>
+    </div>
+
+    <div class="card table-wrap">
+      <table id="songsTable" class="table">
+        <thead>
+          <tr>
+            <th style="width: 60px">#</th>
+            <th>Contestant</th>
+            <th>WhatsApp</th>
+            <th>Status</th>
+            <th style="width: 160px" data-actions="1">Actions</th>
+            <!-- Admin-only -->
+          </tr>
+        </thead>
+        <tbody id="songsBody"></tbody>
+      </table>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

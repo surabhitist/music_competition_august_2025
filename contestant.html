@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contestant Details</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Contestant Performance</h1>
+      <div id="authButtons">
+        <a href="login.html" id="loginBtn" class="hidden"
+          >Login (Admin/Judge)</a
+        >
+        <button id="logoutBtn" class="hidden">Logout</button>
+      </div>
+    </div>
+
+    <div id="contestantDetails" class="card"></div>
+
+    <div id="judgeSection" class="hidden card judge-card">
+      <p id="whichJudge" class="which-judge"></p>
+      <label for="marks">Enter Your Mark (0–25):</label>
+      <input type="number" id="marks" min="0" max="25" />
+      <button id="submitMarks" class="btn">Submit</button>
+      <p class="note">You can update your mark; the latest value is saved.</p>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

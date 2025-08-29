@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="login-body">
+    <div class="login-wrapper">
+      <form id="loginForm" class="card login-card">
+        <h2>Sign in</h2>
+        <p class="sub">Choose your role and enter credentials</p>
+
+        <div class="judge-pick">
+          <label
+            ><input type="radio" name="rolePick" value="admin" checked />
+            Admin</label
+          >
+          <label
+            ><input type="radio" name="rolePick" value="judge1" /> James</label
+          >
+          <label
+            ><input type="radio" name="rolePick" value="judge2" /> Ananth</label
+          >
+        </div>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="Enter username"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="Enter password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn wide">Login</button>
+        <p class="note center">Only authorized users may log in.</p>
+      </form>
+    </div>
+
+    <script>
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const user = document.getElementById("username").value.trim();
+          const pass = document.getElementById("password").value.trim();
+          const rolePicked = document.querySelector(
+            'input[name="rolePick"]:checked'
+          ).value;
+
+          if (user === "anaswara" && pass === "karukayil123") {
+            // prototype-only
+            localStorage.setItem("role", rolePicked);
+            // Judges & Admin go directly to View Songs
+            window.location.href = "view.html";
+          } else {
+            alert("Invalid credentials!");
+          }
+        });
+    </script>
+  </body>
+</html>
