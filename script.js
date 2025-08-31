@@ -12,9 +12,121 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 /*********************** COMMON UI ************************/
 /*********************** ROLES + PINS ***************************/
 /*********************** ROLES + PINS ***************************/
+/*********************** ROLES + PINS ***************************/
 const ADMIN_PIN = "AdminKarukayil123!@#";
 const J1_PIN = "JamesKarukayil123!@#";
 const J2_PIN = "AnanthKarukayil123!@#";
+
+/*********************** LOGIN UI (mobile-safe) ************************/
+(function setupRoleLogin() {
+  // Allow quick testing: ?role=admin|judge1|judge2
+  const urlRole = new URLSearchParams(location.search).get("role");
+  if (urlRole) localStorage.setItem("role", urlRole);
+
+  let role = localStorage.getItem("role") || "public";
+  const isPrivileged = ["admin", "judge1", "judge2"].includes(role);
+
+  // Robust sanitizer: remove ALL unicode whitespace, zero-width/bidi, and control chars.
+  const sanitizePin = (s) =>
+    String(s ?? "")
+      .normalize("NFKC")
+      // remove ASCII control & DEL + C1 controls
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+      // remove all Unicode whitespace (incl NBSP, en/em spaces, thin spaces, IDEO space)
+      .replace(/[\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, "")
+      // remove zero-width & bidi controls
+      .replace(/[\u200B-\u200F\u061C\u2060-\u206F\uFEFF]/g, "")
+      .trim();
+
+  const judgeLoginBtn = document.getElementById("judgeLoginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const modal = document.getElementById("pinModal");
+  const pinInput = document.getElementById("pinInput");
+  const pinSubmit = document.getElementById("pinSubmit");
+  const pinCancel = document.getElementById("pinCancel");
+  const pinError = document.getElementById("pinError");
+
+  function openModal() {
+    if (!modal) return fallbackPrompt();
+    pinError && pinError.classList.add("hidden");
+    if (pinInput) {
+      pinInput.value = "";
+      // prevent mobile autocap/auto spacing
+      pinInput.setAttribute("autocapitalize", "none");
+      pinInput.setAttribute("autocomplete", "off");
+      pinInput.setAttribute("autocorrect", "off");
+      pinInput.setAttribute("spellcheck", "false");
+    }
+    modal.classList.remove("hidden");
+    setTimeout(() => {
+      try {
+        pinInput && pinInput.focus();
+      } catch (_) {}
+    }, 50);
+  }
+  function closeModal() {
+    modal && modal.classList.add("hidden");
+  }
+
+  function fallbackPrompt() {
+    const raw = prompt("Enter Judge/Admin PIN:");
+    if (raw === null) return;
+    handlePin(raw);
+  }
+
+  function handlePin(raw) {
+    const entered = sanitizePin(raw);
+    const A = sanitizePin(ADMIN_PIN);
+    const J1 = sanitizePin(J1_PIN);
+    const J2 = sanitizePin(J2_PIN);
+
+    let newRole = null;
+    if (entered === A) newRole = "admin";
+    else if (entered === J1) newRole = "judge1";
+    else if (entered === J2) newRole = "judge2";
+
+    if (!newRole) {
+      pinError ? pinError.classList.remove("hidden") : alert("Invalid PIN");
+      return;
+    }
+    localStorage.setItem("role", newRole);
+    // Hide login button immediately and reload to apply role gating
+    judgeLoginBtn && judgeLoginBtn.classList.add("hidden");
+    closeModal();
+    location.reload();
+  }
+
+  // Wire modal buttons
+  pinSubmit &&
+    (pinSubmit.onclick = () => handlePin(pinInput ? pinInput.value : ""));
+  pinCancel && (pinCancel.onclick = closeModal);
+  pinInput &&
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handlePin(pinInput.value);
+    });
+
+  // Show/hide buttons by role
+  if (judgeLoginBtn) {
+    if (isPrivileged) {
+      judgeLoginBtn.classList.add("hidden");
+    } else {
+      judgeLoginBtn.classList.remove("hidden");
+      judgeLoginBtn.onclick = openModal;
+    }
+  }
+  if (logoutBtn) {
+    if (isPrivileged) {
+      logoutBtn.classList.remove("hidden");
+      logoutBtn.onclick = () => {
+        localStorage.removeItem("role");
+        alert("Logged out.");
+        window.location.href = "index.html";
+      };
+    } else {
+      logoutBtn.classList.add("hidden");
+    }
+  }
+})();
 
 /*********************** COMMON UI ************************/
 (function setupUI() {
