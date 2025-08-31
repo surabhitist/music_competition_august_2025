@@ -1,13 +1,13 @@
 /*********************** CONFIG ***************************/
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxAeX9VOhoCDLjmzfRmCqyvV4eWlqeqXTluNc0ZsqEE1XmSjcuIsrG6INo58Kl52Nsz/exec";
+  "https://script.google.com/macros/s/AKfycbzPq2OAlbflQXO17DlkccE-gdAdK219T0i9SysL4cX2W6l_514E9cdN4eNRL0Y02NNf/exec";
 
-/*********************** ROLES + SIMPLE PINS ***************************/
-const ADMIN_PIN = "ADMIN123";
-const J1_PIN = "JAMES123";
-const J2_PIN = "ANANTH123";
+/*********************** ROLES + PINS ***************************/
+const ADMIN_PIN = "ADMIN123!@#";
+const J1_PIN = "JAMES123!@#";
+const J2_PIN = "ANANTH123!@#";
 
-// Allow ?role=judge1 etc.
+// Allow ?role=judge1 for quick testing
 const urlRole = new URLSearchParams(location.search).get("role");
 if (urlRole) localStorage.setItem("role", urlRole);
 let role = localStorage.getItem("role") || "public";
@@ -15,7 +15,6 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 
 /*********************** COMMON UI ************************/
 (function setupUI() {
-  // Role selector (header)
   const rs = document.getElementById("roleSelect");
   if (rs) {
     rs.value = role;
@@ -25,11 +24,9 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     };
   }
 
-  // Judge login via PIN (header)
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
   if (judgeLoginBtn) {
     if (isPrivileged) {
-      // Already logged in → hide login button
       judgeLoginBtn.classList.add("hidden");
     } else {
       judgeLoginBtn.classList.remove("hidden");
@@ -50,7 +47,6 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Logout button (header)
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     if (isPrivileged) {
@@ -65,7 +61,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Judges/admins shouldn’t upload new entries
+  // Hide upload link for judges/admins
   if (isPrivileged) {
     const up1 = document.getElementById("uploadLink");
     const up2 = document.getElementById("uploadLinkView");
@@ -94,7 +90,6 @@ async function gasGet() {
     return { ok: false, error: String(e) };
   }
 }
-// FORM-ENC POST (avoids CORS preflight)
 async function postForm(paramsObj) {
   const params = new URLSearchParams();
   for (const k in paramsObj) params.set(k, String(paramsObj[k]));
@@ -131,34 +126,30 @@ function sortEntries(rows) {
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 }
-// Use a direct Drive URL that streams in <audio>/<video>
-function getDirectMediaUrl(fileId, fallbackUrl) {
-  if (fileId)
-    return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(
-      fileId
-    )}`;
-  return fallbackUrl || "";
+
+// Drive URL helpers
+const driveDl = (fid) =>
+  `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fid)}`;
+const drivePrev = (fid) =>
+  `https://drive.google.com/file/d/${encodeURIComponent(fid)}/preview`;
+
+function extractFileIdFromUrl(u) {
+  if (!u) return "";
+  const s = String(u);
+  // /file/d/<ID>/
+  let m = s.match(/\/file\/d\/([^/]+)/i);
+  if (m && m[1]) return m[1];
+  // ?id=<ID>
+  m = s.match(/[?&]id=([^&]+)/i);
+  if (m && m[1]) return m[1];
+  // /uc?export=download&id=<ID> or any id= again
+  m = s.match(/[?&]id=([^&]+)/i);
+  if (m && m[1]) return m[1];
+  return "";
 }
 
 /*********************** UPLOAD PAGE **************************/
-/*********************** UPLOAD PAGE **************************/
-/*********************** UPLOAD PAGE **************************/
 (function uploadPage() {
-  const fileInput = document.getElementById("file");
-  const fileName = document.getElementById("fileName");
-
-  if (fileInput) {
-    fileInput.onchange = () => {
-      if (fileInput.files && fileInput.files.length > 0) {
-        fileName.textContent = fileInput.files[0].name;
-        fileName.classList.remove("muted");
-      } else {
-        fileName.textContent = "No file selected";
-        fileName.classList.add("muted");
-      }
-    };
-  }
-
   const form = document.getElementById("uploadForm");
   if (!form) return;
 
@@ -166,40 +157,27 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
   const bar = document.getElementById("progressBar");
   const txt = document.getElementById("progressText");
 
-  // --- success banner container ---
-  const successBox = document.createElement("div");
-  successBox.id = "uploadSuccessBox";
-  successBox.className = "hidden";
-  successBox.innerHTML = `
-    <div style="
-      margin: 30px auto; 
-      padding: 20px; 
-      max-width: 400px; 
-      background:#1f4337; 
-      color:#73f0c6; 
-      border:2px solid #20c997; 
-      border-radius:12px; 
-      text-align:center; 
-      font-size:18px; 
-      font-weight:600;
-      box-shadow:0 4px 14px rgba(0,0,0,0.4);
-    ">
-      ✅ Upload successful!…
-    </div>`;
-  form.parentNode.insertBefore(successBox, form.nextSibling);
-
-  async function waitForPhone(phone, timeoutMs = 30000, stepMs = 1500) {
-    const phoneKey = phone.trim();
-    const t0 = Date.now();
-    while (Date.now() - t0 < timeoutMs) {
-      const res = await gasGet();
-      if (res.ok && Array.isArray(res.entries)) {
-        if (res.entries.some((x) => String(x.phone || "").trim() === phoneKey))
-          return true;
-      }
-      await new Promise((r) => setTimeout(r, stepMs));
+  function showUploadSuccessAndRedirect() {
+    let successBox = document.getElementById("uploadSuccessBox");
+    if (!successBox) {
+      successBox = document.createElement("div");
+      successBox.id = "uploadSuccessBox";
+      successBox.innerHTML = `
+        <div style="
+          margin: 30px auto; padding: 20px; max-width: 420px;
+          background:#1f4337; color:#73f0c6; border:2px solid #20c997;
+          border-radius:12px; text-align:center; font-size:18px; font-weight:600;
+          box-shadow:0 4px 14px rgba(0,0,0,0.4);
+        ">
+          ✅ Upload successful!<br/>Redirecting to <strong>View Songs</strong>…
+        </div>`;
+      form.parentNode.insertBefore(successBox, form.nextSibling);
     }
-    return false;
+    successBox.classList.remove("hidden");
+    form.reset();
+    setTimeout(() => {
+      window.location.href = "view.html";
+    }, 1800);
   }
 
   form.addEventListener("submit", async (e) => {
@@ -241,50 +219,49 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
       }
 
       wrap.classList.remove("hidden");
-      bar.style.width = "10%";
-      txt.textContent = "Reading file…";
+      bar.style.width = "25%";
+      txt.textContent = "Preparing upload…";
 
-      const base64 = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onerror = () => reject(fr.error || new Error("File read error"));
-        fr.onload = () => {
-          const s = String(fr.result);
-          const i = s.indexOf(",");
-          resolve(i >= 0 ? s.slice(i + 1) : s);
-        };
-        fr.readAsDataURL(file);
-      });
+      const fd = new FormData();
+      fd.set("action", "upload");
+      fd.set("name", name);
+      fd.set("phone", phone);
+      fd.set("filename", file.name);
+      fd.set("type", type);
+      fd.set("file", file);
 
-      bar.style.width = "40%";
+      bar.style.width = "55%";
       txt.textContent = "Uploading…";
-      await fetch(GAS_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-        },
-        body: new URLSearchParams({
-          action: "upload_b64",
-          name,
-          phone,
-          filename: file.name,
-          type,
-          data: base64,
-        }).toString(),
-      });
 
-      bar.style.width = "70%";
-      txt.textContent = "Processing…";
-      const ok = await waitForPhone(phone);
+      await fetch(GAS_URL, { method: "POST", mode: "no-cors", body: fd });
+
+      const isVideo = type.startsWith("video");
+      const timeoutMs = isVideo ? 180000 : 45000;
+      const stepMs = 1500;
+
+      bar.style.width = "75%";
+      txt.textContent = isVideo
+        ? "Processing video… this can take 1–3 minutes. Please wait…"
+        : "Processing…";
+
+      const ok = await (async function waitForPhone(phone, timeout, step) {
+        const key = phone.trim();
+        const t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          const res = await gasGet();
+          if (res.ok && Array.isArray(res.entries)) {
+            if (res.entries.some((x) => String(x.phone || "").trim() === key))
+              return true;
+          }
+          await new Promise((r) => setTimeout(r, step));
+        }
+        return false;
+      })(phone, timeoutMs, stepMs);
+
       if (!ok) throw new Error("Upload did not complete. Please try again.");
 
-      // ✅ CLEAR SUCCESS MESSAGE
       wrap.classList.add("hidden");
-      successBox.classList.remove("hidden");
-
-      setTimeout(() => {
-        window.location.href = "view.html";
-      }, 2000);
+      showUploadSuccessAndRedirect();
     } catch (err) {
       alert(err.message || "Upload failed. Please try again.");
       if (btn) {
@@ -318,7 +295,6 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         : "Public";
   }
 
-  // Hide Actions header for non-admins
   if (role !== "admin" && tableEl.tHead && tableEl.tHead.rows.length) {
     const lastTh = tableEl.tHead.rows[0].lastElementChild;
     if (lastTh && lastTh.dataset && lastTh.dataset.actions === "1")
@@ -351,7 +327,6 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 
   async function loadAndRender() {
     const resp = await gasGet();
-
     if (!resp.ok) {
       bodyEl.innerHTML = `
         <tr><td colspan="${role === "admin" ? 5 : 4}" class="center">
@@ -406,7 +381,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
           if (newPhone === null) return;
           const r = await postForm({
             action: "edit",
-            id: e.id,
+            id: String(e.id),
             name: newName.trim(),
             phone: newPhone.trim(),
           });
@@ -419,7 +394,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         btnD.onclick = async (ev) => {
           ev.stopPropagation();
           if (confirm("Delete this entry?")) {
-            const r = await postForm({ action: "delete", id: e.id });
+            const r = await postForm({ action: "delete", id: String(e.id) });
             if (!r.ok) alert(r.error || "Delete failed");
             else loadAndRender();
           }
@@ -436,26 +411,14 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
   setInterval(loadAndRender, 5000);
 })();
 
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE *****************************/
-/*********************** CONTESTANT PAGE (stable, no flicker) *****************************/
-/*********************** CONTESTANT PAGE (stable, clean) *****************************/
+/*********************** CONTESTANT PAGE (stable embed, no flicker) *****************************/
 (function contestantPage() {
   const container = document.getElementById("contestantDetails");
   if (!container) return;
 
   const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
+  const id = params.get("id"); // string id from URL
 
-  // Helpers
-  const driveDl = (fid) =>
-    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fid)}`;
-  const drivePrev = (fid) =>
-    `https://drive.google.com/file/d/${encodeURIComponent(fid)}/preview`;
   const inferKind = (entry, src) => {
     if (entry.type === "video" || entry.type === "audio") return entry.type;
     const u = (src || "").toLowerCase();
@@ -474,15 +437,28 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
       container.innerHTML = "<p class='muted'>Could not load.</p>";
       return null;
     }
-    const e = (resp.entries || []).find((x) => x.id === id);
+    const e = (resp.entries || []).find((x) => String(x.id) === String(id));
     if (!e) {
       container.innerHTML = "<p class='muted'>Entry not found.</p>";
       return null;
     }
 
-    const fileId = e.fileId || "";
-    const primarySrc = fileId ? driveDl(fileId) : e.fileUrl || "";
-    const kind = inferKind(e, primarySrc);
+    // Derive a reliable fileId from either column
+    let fileId = String(e.fileId || "").trim();
+    if (!fileId && e.fileUrl) fileId = extractFileIdFromUrl(e.fileUrl);
+
+    if (!fileId) {
+      container.innerHTML = `
+        <h2>${escapeHtml(e.name)}</h2>
+        <p><strong>WhatsApp:</strong> ${escapeHtml(String(e.phone || ""))}</p>
+        <p class="muted">This entry has no valid Drive file ID. Please update the sheet’s <em>fileId</em> column.</p>
+      `;
+      return null;
+    }
+
+    const html5Src = driveDl(fileId); // for <video>/<audio>
+    const iframeSrc = drivePrev(fileId); // Drive preview fallback
+    const kind = inferKind(e, e.fileUrl || "");
 
     container.innerHTML = `
       <h2>${escapeHtml(e.name)}</h2>
@@ -492,7 +468,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 
     mediaMount = document.getElementById("embedHere");
 
-    // --- Try native media first; fallback to Drive preview iframe once ---
+    // Try native media first; fallback once to Drive preview iframe
     const mountNative = () => {
       let el;
       if (kind === "video") {
@@ -500,7 +476,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         el.controls = true;
         el.playsInline = true;
         el.preload = "metadata";
-        el.src = primarySrc;
+        el.src = html5Src;
         el.style.maxWidth = "100%";
         el.style.height = "auto";
         el.style.borderRadius = "8px";
@@ -508,7 +484,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
         el = document.createElement("audio");
         el.controls = true;
         el.preload = "metadata";
-        el.src = primarySrc;
+        el.src = html5Src;
       }
       let loaded = false;
       el.addEventListener(
@@ -533,9 +509,8 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
     };
 
     const mountIframe = () => {
-      if (!fileId) return;
       const iframe = document.createElement("iframe");
-      iframe.src = drivePrev(fileId);
+      iframe.src = iframeSrc;
       iframe.style.width = "100%";
       iframe.style.border = "0";
       iframe.allow = "autoplay; encrypted-media";
@@ -546,11 +521,11 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
 
     mountNative();
 
-    // Build status paragraph
+    // Status paragraph
     infoP = document.createElement("p");
     container.appendChild(infoP);
 
-    // Judge panel references (already present in HTML)
+    // Judge panel
     judgeCard = document.getElementById("judgeSection");
     whichJudge = document.getElementById("whichJudge");
     marksInput = document.getElementById("marks");
@@ -574,7 +549,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
           submitBtn.textContent = "Saving…";
           const r = await postForm({
             action: "mark",
-            id: e.id,
+            id: String(e.id),
             judge: role,
             value: val,
           });
@@ -598,7 +573,7 @@ function getDirectMediaUrl(fileId, fallbackUrl) {
     if (!e) {
       const resp = await gasGet();
       if (!resp.ok) return;
-      e = (resp.entries || []).find((x) => x.id === id);
+      e = (resp.entries || []).find((x) => String(x.id) === String(id));
       if (!e) return;
     }
 

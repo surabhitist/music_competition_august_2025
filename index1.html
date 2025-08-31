@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>View Songs</title>
+    <title>Music Competition</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
     <header class="topbar">
-      <h1>Contestants — <span id="viewMode">Public</span></h1>
+      <h1>Music Competition</h1>
       <nav class="nav">
         <!-- <a id="uploadLink" href="upload.html">Upload</a>
         <a id="uploadLinkView" href="view.html">View Songs</a> -->
@@ -24,24 +24,20 @@
     </header>
 
     <main class="container">
-      <div class="card">
-        <table id="songsTable" class="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Contestant</th>
-              <th>WhatsApp</th>
-              <th>Status</th>
-              <th data-actions="1">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="songsBody">
-            <tr>
-              <td colspan="5" class="center muted">Loading…</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <section class="card">
+        <h2>Welcome</h2>
+
+        <div class="grid-two">
+          <!-- <a class="card linkcard" href="upload.html">
+            <h3>Upload Entry</h3>
+            <p>Submit audio/video (≤ 50MB)</p>
+          </a> -->
+          <a class="card linkcard" href="view.html">
+            <h3>View Songs</h3>
+            <p>See entries & marks in real-time</p>
+          </a>
+        </div>
+      </section>
     </main>
 
     <script src="script.js" type="module"></script>
