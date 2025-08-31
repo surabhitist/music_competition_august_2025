@@ -15,55 +15,97 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 
 /*********************** COMMON UI ************************/
 /*********************** COMMON UI ************************/
-(function setupUI() {
-  // Helper: normalize strings for robust comparison
-  const norm = (s) =>
-    String(s || "")
-      .trim()
-      .replace(/\s+/g, "")
-      .toUpperCase();
+/*********************** ROLES + PINS ***************************/
+const ADMIN_PIN = "Karukayil123!@#";
+const J1_PIN = "Karukayil123!@#";
+const J2_PIN = "Karukayil123!@#";
 
-  // Read role from URL override once
+/*********************** COMMON UI ************************/
+(function setupUI() {
+  // URL override once (e.g. ?role=admin for testing)
   const urlRole = new URLSearchParams(location.search).get("role");
   if (urlRole) localStorage.setItem("role", urlRole);
+
   window.role = localStorage.getItem("role") || "public";
   window.isPrivileged =
     role === "admin" || role === "judge1" || role === "judge2";
 
-  // Judge/Admin login button
+  // --- Helpers to make mobile inputs robust ---
+  const sanitizePin = (s) => {
+    // Normalize Unicode, remove all whitespace (incl. zero-width/non-breaking)
+    // and strip direction/invisible control chars
+    return String(s || "")
+      .normalize("NFKC")
+      .replace(/[\u200B-\u200D\uFEFF\u2060\u00A0\s]/g, ""); // zero-width, NBSP, any whitespace
+  };
+  const eqPin = (input, target) => sanitizePin(input) === sanitizePin(target);
+
+  // --- Modal wiring ---
+  const modal = document.getElementById("pinModal");
+  const pinIn = document.getElementById("pinInput");
+  const pinOk = document.getElementById("pinSubmit");
+  const pinNo = document.getElementById("pinCancel");
+  const pinErr = document.getElementById("pinError");
+
+  function openPin() {
+    if (!modal) return fallbackPrompt();
+    pinErr && pinErr.classList.add("hidden");
+    pinIn && (pinIn.value = "");
+    modal.classList.remove("hidden");
+    // focus after paint for some mobile UAs
+    setTimeout(() => {
+      try {
+        pinIn && pinIn.focus();
+      } catch (_) {}
+    }, 50);
+  }
+  function closePin() {
+    modal && modal.classList.add("hidden");
+  }
+  function fallbackPrompt() {
+    const entered = prompt("Enter Judge/Admin PIN:");
+    if (entered === null) return;
+    handlePin(entered);
+  }
+  function handlePin(entered) {
+    // Compare against all three roles (same PIN in your case)
+    let newRole = null;
+    if (eqPin(entered, ADMIN_PIN)) newRole = "admin";
+    else if (eqPin(entered, J1_PIN)) newRole = "judge1";
+    else if (eqPin(entered, J2_PIN)) newRole = "judge2";
+
+    if (!newRole) {
+      if (pinErr) pinErr.classList.remove("hidden");
+      else alert("Invalid PIN");
+      return;
+    }
+    localStorage.setItem("role", newRole);
+    // Hide login button immediately and reload UI
+    const judgeLoginBtn = document.getElementById("judgeLoginBtn");
+    if (judgeLoginBtn) judgeLoginBtn.classList.add("hidden");
+    closePin();
+    location.reload();
+  }
+
+  if (pinOk) pinOk.onclick = () => handlePin(pinIn ? pinIn.value : "");
+  if (pinNo) pinNo.onclick = closePin;
+  if (pinIn)
+    pinIn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handlePin(pinIn.value);
+    });
+
+  // --- Judge/Admin login button ---
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
   if (judgeLoginBtn) {
     if (isPrivileged) {
-      // Already logged in -> hide login
       judgeLoginBtn.classList.add("hidden");
     } else {
       judgeLoginBtn.classList.remove("hidden");
-      judgeLoginBtn.onclick = () => {
-        const pinRaw = prompt("Enter Judge/Admin PIN:");
-        if (pinRaw === null) return; // user cancelled
-        const p = norm(pinRaw);
-        const A = norm(ADMIN_PIN);
-        const J1 = norm(J1_PIN);
-        const J2 = norm(J2_PIN);
-
-        let newRole = null;
-        if (p && p === A) newRole = "admin";
-        else if (p && p === J1) newRole = "judge1";
-        else if (p && p === J2) newRole = "judge2";
-
-        if (!newRole) {
-          alert("Invalid PIN");
-          return;
-        }
-        localStorage.setItem("role", newRole);
-        // Immediately hide the login button and reload to apply role-based UI
-        judgeLoginBtn.classList.add("hidden");
-        location.reload();
-      };
+      judgeLoginBtn.onclick = openPin;
     }
   }
 
-  // Logout button
+  // --- Logout button ---
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     if (isPrivileged) {
@@ -78,7 +120,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Hide upload links for judges/admins
+  // --- Hide upload links for judges/admins ---
   if (isPrivileged) {
     const up1 = document.getElementById("uploadLink");
     const up2 = document.getElementById("uploadLinkView");
