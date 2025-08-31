@@ -1,6 +1,6 @@
 /*********************** CONFIG ***************************/
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbzPq2OAlbflQXO17DlkccE-gdAdK219T0i9SysL4cX2W6l_514E9cdN4eNRL0Y02NNf/exec";
+  "https://script.google.com/macros/s/AKfycbxWMNEETGgij-cPBn_DJOYJtgX4IoYz0YiEsGkKwMPK4kwrPhvO0D45TwCKxdZuj9KI/exec";
 
 /*********************** ROLES + PINS ***************************/
 const ADMIN_PIN = "ADMIN123!@#";
@@ -15,15 +15,6 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 
 /*********************** COMMON UI ************************/
 (function setupUI() {
-  const rs = document.getElementById("roleSelect");
-  if (rs) {
-    rs.value = role;
-    rs.onchange = () => {
-      localStorage.setItem("role", rs.value);
-      location.reload();
-    };
-  }
-
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
   if (judgeLoginBtn) {
     if (isPrivileged) {
@@ -142,7 +133,7 @@ function extractFileIdFromUrl(u) {
   // ?id=<ID>
   m = s.match(/[?&]id=([^&]+)/i);
   if (m && m[1]) return m[1];
-  // /uc?export=download&id=<ID> or any id= again
+  // uc?export=download&id=<ID>
   m = s.match(/[?&]id=([^&]+)/i);
   if (m && m[1]) return m[1];
   return "";
@@ -207,6 +198,7 @@ function extractFileIdFromUrl(u) {
       if (file.size > MAX)
         throw new Error("File too large. Please upload under 50 MB.");
 
+      // Duplicate check
       const list = await gasGet();
       if (
         list.ok &&
@@ -295,6 +287,7 @@ function extractFileIdFromUrl(u) {
         : "Public";
   }
 
+  // Hide Actions header for non-admins
   if (role !== "admin" && tableEl.tHead && tableEl.tHead.rows.length) {
     const lastTh = tableEl.tHead.rows[0].lastElementChild;
     if (lastTh && lastTh.dataset && lastTh.dataset.actions === "1")
@@ -350,7 +343,12 @@ function extractFileIdFromUrl(u) {
       const tr = document.createElement("tr");
       tr.className = "clickable";
       tr.onclick = () => {
-        window.location.href = `contestant.html?id=${encodeURIComponent(e.id)}`;
+        try {
+          sessionStorage.setItem("lastContestantId", String(e.id));
+        } catch (_) {}
+        window.location.href = `contestant.html?id=${encodeURIComponent(
+          String(e.id)
+        )}`;
       };
 
       const tdIdx = document.createElement("td");
@@ -411,13 +409,45 @@ function extractFileIdFromUrl(u) {
   setInterval(loadAndRender, 5000);
 })();
 
-/*********************** CONTESTANT PAGE (stable embed, no flicker) *****************************/
+/*********************** CONTESTANT PAGE (mobile-proof, stable embed) *****************************/
 (function contestantPage() {
   const container = document.getElementById("contestantDetails");
   if (!container) return;
 
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id"); // string id from URL
+  function resolveContestantId() {
+    // 1) querystring ?id=...
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qid = params.get("id");
+      if (qid && qid.trim()) return decodeURIComponent(qid).trim();
+    } catch (_) {}
+    // 2) hash #id=...
+    try {
+      const h = String(window.location.hash || "");
+      const m = h.match(/[#&?]id=([^&]+)/i);
+      if (m && m[1]) return decodeURIComponent(m[1]).trim();
+    } catch (_) {}
+    // 3) path /contestant.html/123 or /contestant/123
+    try {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const last = parts[parts.length - 1] || "";
+      const pm = last.match(/^(\d+|[A-Za-z0-9\-\_]+)$/);
+      if (pm && pm[1]) return decodeURIComponent(pm[1]).trim();
+    } catch (_) {}
+    // 4) sessionStorage fallback
+    try {
+      const sid = sessionStorage.getItem("lastContestantId");
+      if (sid && sid.trim()) return sid.trim();
+    } catch (_) {}
+    return null;
+  }
+
+  const id = resolveContestantId();
+  if (!id) {
+    container.innerHTML =
+      "<p class='muted'>Entry not found (no id provided). Please open from the View Songs page.</p>";
+    return;
+  }
 
   const inferKind = (entry, src) => {
     if (entry.type === "video" || entry.type === "audio") return entry.type;
@@ -427,8 +457,22 @@ function extractFileIdFromUrl(u) {
     return "audio";
   };
 
+  // Drive helpers
+  const driveDl = (fid) =>
+    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fid)}`;
+  const drivePrev = (fid) =>
+    `https://drive.google.com/file/d/${encodeURIComponent(fid)}/preview`;
+  function extractFileIdFromUrl(u) {
+    if (!u) return "";
+    const s = String(u);
+    let m = s.match(/\/file\/d\/([^/]+)/i);
+    if (m && m[1]) return m[1];
+    m = s.match(/[?&]id=([^&]+)/i);
+    if (m && m[1]) return m[1];
+    return "";
+  }
+
   let infoP, whichJudge, marksInput, submitBtn, judgeCard, mediaMount;
-  let mediaInitialized = false;
   let lastEntryJson = "";
 
   async function initOnce() {
@@ -443,10 +487,8 @@ function extractFileIdFromUrl(u) {
       return null;
     }
 
-    // Derive a reliable fileId from either column
     let fileId = String(e.fileId || "").trim();
     if (!fileId && e.fileUrl) fileId = extractFileIdFromUrl(e.fileUrl);
-
     if (!fileId) {
       container.innerHTML = `
         <h2>${escapeHtml(e.name)}</h2>
@@ -456,7 +498,7 @@ function extractFileIdFromUrl(u) {
       return null;
     }
 
-    const html5Src = driveDl(fileId); // for <video>/<audio>
+    const html5Src = driveDl(fileId); // for native <video>/<audio>
     const iframeSrc = drivePrev(fileId); // Drive preview fallback
     const kind = inferKind(e, e.fileUrl || "");
 
@@ -466,9 +508,9 @@ function extractFileIdFromUrl(u) {
       <div id="embedHere" style="margin-top:12px;"></div>
     `;
 
-    mediaMount = document.getElementById("embedHere");
+    const mediaMountEl = document.getElementById("embedHere");
 
-    // Try native media first; fallback once to Drive preview iframe
+    // Try native media first; if it doesn't load quickly, fallback once to Drive preview
     const mountNative = () => {
       let el;
       if (kind === "video") {
@@ -504,8 +546,8 @@ function extractFileIdFromUrl(u) {
       setTimeout(() => {
         if (!loaded) mountIframe();
       }, 2000);
-      mediaMount.innerHTML = "";
-      mediaMount.appendChild(el);
+      mediaMountEl.innerHTML = "";
+      mediaMountEl.appendChild(el);
     };
 
     const mountIframe = () => {
@@ -515,13 +557,13 @@ function extractFileIdFromUrl(u) {
       iframe.style.border = "0";
       iframe.allow = "autoplay; encrypted-media";
       iframe.style.height = kind === "video" ? "360px" : "120px";
-      mediaMount.innerHTML = "";
-      mediaMount.appendChild(iframe);
+      mediaMountEl.innerHTML = "";
+      mediaMountEl.appendChild(iframe);
     };
 
     mountNative();
 
-    // Status paragraph
+    // Build status paragraph
     infoP = document.createElement("p");
     container.appendChild(infoP);
 
@@ -563,7 +605,6 @@ function extractFileIdFromUrl(u) {
       }
     }
 
-    mediaInitialized = true;
     await refreshMarksOnly(e);
     return e;
   }
@@ -621,6 +662,7 @@ function extractFileIdFromUrl(u) {
 
   (async () => {
     await initOnce();
-    if (mediaInitialized) setInterval(refreshMarksOnly, 5000);
+    // refresh marks periodically (media is static)
+    setInterval(refreshMarksOnly, 5000);
   })();
 })();
