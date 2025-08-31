@@ -2,11 +2,6 @@
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbxWMNEETGgij-cPBn_DJOYJtgX4IoYz0YiEsGkKwMPK4kwrPhvO0D45TwCKxdZuj9KI/exec";
 
-/*********************** ROLES + PINS ***************************/
-const ADMIN_PIN = "ADMIN123";
-const J1_PIN = "JAMES123";
-const J2_PIN = "ANANTH123";
-
 // Allow ?role=judge1 for quick testing
 const urlRole = new URLSearchParams(location.search).get("role");
 if (urlRole) localStorage.setItem("role", urlRole);
