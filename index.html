@@ -12,8 +12,8 @@
       <nav class="nav">
         <!-- <a id="uploadLink" href="upload.html">Upload</a>
         <a id="uploadLinkView" href="view.html">View Songs</a> -->
-        <button id="judgeLoginBtn" class="btn">Judge Login</button>
-        <button id="logoutBtn" class="btn hidden">Logout</button>
+        <!-- <button id="judgeLoginBtn" class="btn">Judge Login</button>
+        <button id="logoutBtn" class="btn hidden">Logout</button> -->
         <!-- <select id="roleSelect" class="role-select">
           <option value="public">Public</option>
           <option value="admin">Admin</option>
@@ -43,36 +43,6 @@
         </table>
       </div>
     </main>
-
-    <div id="pinModal" class="pin-modal hidden" aria-hidden="true">
-      <div
-        class="pin-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pinTitle"
-      >
-        <h3 id="pinTitle">Judge / Admin Login</h3>
-        <p class="pin-sub">Enter your role PIN. (Case-sensitive)</p>
-        <input
-          id="pinInput"
-          class="pin-input"
-          type="password"
-          inputmode="latin"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="none"
-          spellcheck="false"
-          placeholder="Enter PIN"
-        />
-        <div class="pin-actions">
-          <button id="pinCancel" class="btn ghost">Cancel</button>
-          <button id="pinSubmit" class="btn primary">Login</button>
-        </div>
-        <p id="pinError" class="pin-error hidden">
-          Invalid PIN. Please try again.
-        </p>
-      </div>
-    </div>
 
     <script src="script.js" type="module"></script>
   </body>
