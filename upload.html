@@ -63,18 +63,32 @@
       </form>
     </main>
 
+    <!-- Judge/Admin Login Button (place in your header or wherever you show it) -->
+    <button id="judgeLoginBtn" class="btn">Judge / Admin Login</button>
+    <button id="logoutBtn" class="btn hidden" style="margin-left: 8px">
+      Logout
+    </button>
+
     <!-- PIN Login Modal -->
-    <div id="pinModal" class="pin-modal hidden">
-      <div class="pin-card">
-        <h3>Judge / Admin Login</h3>
-        <p class="pin-sub">Enter the shared PIN exactly as given.</p>
+    <div id="pinModal" class="pin-modal hidden" aria-hidden="true">
+      <div
+        class="pin-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pinTitle"
+      >
+        <h3 id="pinTitle">Judge / Admin Login</h3>
+        <p class="pin-sub">Enter your role PIN. (Case-sensitive)</p>
         <input
           id="pinInput"
+          class="pin-input"
           type="password"
           inputmode="latin"
-          autocomplete="current-password"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
           placeholder="Enter PIN"
-          class="pin-input"
         />
         <div class="pin-actions">
           <button id="pinCancel" class="btn ghost">Cancel</button>
