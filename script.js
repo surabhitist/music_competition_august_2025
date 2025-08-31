@@ -3,9 +3,9 @@ const GAS_URL =
   "https://script.google.com/macros/s/AKfycbxWMNEETGgij-cPBn_DJOYJtgX4IoYz0YiEsGkKwMPK4kwrPhvO0D45TwCKxdZuj9KI/exec";
 
 /*********************** ROLES + PINS ***************************/
-const ADMIN_PIN = "ADMIN123!@#";
-const J1_PIN = "JAMES123!@#";
-const J2_PIN = "ANANTH123!@#";
+const ADMIN_PIN = "ADMIN123";
+const J1_PIN = "JAMES123";
+const J2_PIN = "ANANTH123";
 
 // Allow ?role=judge1 for quick testing
 const urlRole = new URLSearchParams(location.search).get("role");
@@ -14,30 +14,56 @@ let role = localStorage.getItem("role") || "public";
 let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
 
 /*********************** COMMON UI ************************/
+/*********************** COMMON UI ************************/
 (function setupUI() {
+  // Helper: normalize strings for robust comparison
+  const norm = (s) =>
+    String(s || "")
+      .trim()
+      .replace(/\s+/g, "")
+      .toUpperCase();
+
+  // Read role from URL override once
+  const urlRole = new URLSearchParams(location.search).get("role");
+  if (urlRole) localStorage.setItem("role", urlRole);
+  window.role = localStorage.getItem("role") || "public";
+  window.isPrivileged =
+    role === "admin" || role === "judge1" || role === "judge2";
+
+  // Judge/Admin login button
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
   if (judgeLoginBtn) {
     if (isPrivileged) {
+      // Already logged in -> hide login
       judgeLoginBtn.classList.add("hidden");
     } else {
       judgeLoginBtn.classList.remove("hidden");
       judgeLoginBtn.onclick = () => {
-        const pin = prompt("Enter Judge/Admin PIN:");
-        if (pin === null) return;
+        const pinRaw = prompt("Enter Judge/Admin PIN:");
+        if (pinRaw === null) return; // user cancelled
+        const p = norm(pinRaw);
+        const A = norm(ADMIN_PIN);
+        const J1 = norm(J1_PIN);
+        const J2 = norm(J2_PIN);
+
         let newRole = null;
-        if (pin === ADMIN_PIN) newRole = "admin";
-        else if (pin === J1_PIN) newRole = "judge1";
-        else if (pin === J2_PIN) newRole = "judge2";
+        if (p && p === A) newRole = "admin";
+        else if (p && p === J1) newRole = "judge1";
+        else if (p && p === J2) newRole = "judge2";
+
         if (!newRole) {
           alert("Invalid PIN");
           return;
         }
         localStorage.setItem("role", newRole);
+        // Immediately hide the login button and reload to apply role-based UI
+        judgeLoginBtn.classList.add("hidden");
         location.reload();
       };
     }
   }
 
+  // Logout button
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     if (isPrivileged) {
@@ -52,7 +78,7 @@ let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
     }
   }
 
-  // Hide upload link for judges/admins
+  // Hide upload links for judges/admins
   if (isPrivileged) {
     const up1 = document.getElementById("uploadLink");
     const up2 = document.getElementById("uploadLinkView");
