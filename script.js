@@ -2,40 +2,29 @@
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbxWMNEETGgij-cPBn_DJOYJtgX4IoYz0YiEsGkKwMPK4kwrPhvO0D45TwCKxdZuj9KI/exec";
 
-// Allow ?role=judge1 for quick testing
-const urlRole = new URLSearchParams(location.search).get("role");
-if (urlRole) localStorage.setItem("role", urlRole);
-let role = localStorage.getItem("role") || "public";
-let isPrivileged = role === "admin" || role === "judge1" || role === "judge2";
-
-/*********************** COMMON UI ************************/
-/*********************** COMMON UI ************************/
-/*********************** ROLES + PINS ***************************/
 /*********************** ROLES + PINS ***************************/
 /*********************** ROLES + PINS ***************************/
 const ADMIN_PIN = "AdminKarukayil123!@#";
 const J1_PIN = "JamesKarukayil123!@#";
 const J2_PIN = "AnanthKarukayil123!@#";
 
-/*********************** LOGIN UI (mobile-safe) ************************/
+/*********************** LOGIN UI (mobile-safe, single source of truth) ************************/
 (function setupRoleLogin() {
   // Allow quick testing: ?role=admin|judge1|judge2
   const urlRole = new URLSearchParams(location.search).get("role");
   if (urlRole) localStorage.setItem("role", urlRole);
 
-  let role = localStorage.getItem("role") || "public";
-  const isPrivileged = ["admin", "judge1", "judge2"].includes(role);
+  // compute role once, expose on window for other blocks
+  window.role = localStorage.getItem("role") || "public";
+  window.isPrivileged = ["admin", "judge1", "judge2"].includes(window.role);
 
-  // Robust sanitizer: remove ALL unicode whitespace, zero-width/bidi, and control chars.
+  // Robust sanitizer: nuke ALL controls, ALL unicode whitespace (incl NBSP), zero-width & bidi chars.
   const sanitizePin = (s) =>
     String(s ?? "")
       .normalize("NFKC")
-      // remove ASCII control & DEL + C1 controls
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
-      // remove all Unicode whitespace (incl NBSP, en/em spaces, thin spaces, IDEO space)
-      .replace(/[\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, "")
-      // remove zero-width & bidi controls
-      .replace(/[\u200B-\u200F\u061C\u2060-\u206F\uFEFF]/g, "")
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // ASCII/C1 control
+      .replace(/[\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, "") // all unicode spaces
+      .replace(/[\u200B-\u200F\u061C\u2060-\u206F\uFEFF]/g, "") // zero-width & bidi
       .trim();
 
   const judgeLoginBtn = document.getElementById("judgeLoginBtn");
@@ -51,7 +40,6 @@ const J2_PIN = "AnanthKarukayil123!@#";
     pinError && pinError.classList.add("hidden");
     if (pinInput) {
       pinInput.value = "";
-      // prevent mobile autocap/auto spacing
       pinInput.setAttribute("autocapitalize", "none");
       pinInput.setAttribute("autocomplete", "off");
       pinInput.setAttribute("autocorrect", "off");
@@ -73,7 +61,6 @@ const J2_PIN = "AnanthKarukayil123!@#";
     if (raw === null) return;
     handlePin(raw);
   }
-
   function handlePin(raw) {
     const entered = sanitizePin(raw);
     const A = sanitizePin(ADMIN_PIN);
@@ -90,13 +77,12 @@ const J2_PIN = "AnanthKarukayil123!@#";
       return;
     }
     localStorage.setItem("role", newRole);
-    // Hide login button immediately and reload to apply role gating
     judgeLoginBtn && judgeLoginBtn.classList.add("hidden");
     closeModal();
     location.reload();
   }
 
-  // Wire modal buttons
+  // Wire modal
   pinSubmit &&
     (pinSubmit.onclick = () => handlePin(pinInput ? pinInput.value : ""));
   pinCancel && (pinCancel.onclick = closeModal);
@@ -105,9 +91,9 @@ const J2_PIN = "AnanthKarukayil123!@#";
       if (e.key === "Enter") handlePin(pinInput.value);
     });
 
-  // Show/hide buttons by role
+  // Show/hide top buttons based on role
   if (judgeLoginBtn) {
-    if (isPrivileged) {
+    if (window.isPrivileged) {
       judgeLoginBtn.classList.add("hidden");
     } else {
       judgeLoginBtn.classList.remove("hidden");
@@ -115,7 +101,7 @@ const J2_PIN = "AnanthKarukayil123!@#";
     }
   }
   if (logoutBtn) {
-    if (isPrivileged) {
+    if (window.isPrivileged) {
       logoutBtn.classList.remove("hidden");
       logoutBtn.onclick = () => {
         localStorage.removeItem("role");
